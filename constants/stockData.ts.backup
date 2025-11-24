@@ -1,0 +1,1047 @@
+import { Stock } from '../types';
+
+// Initial stock catalog with 30 diverse stocks
+export const STOCK_CATALOG: Omit<Stock, 'history'>[] = [
+    // Tech Giants
+    {
+        id: '1',
+        symbol: 'AAPL',
+        name: 'Apple Inc.',
+        price: 178.50,
+        sector: 'Tech',
+        marketCap: 2800000000000,
+        volatility: 4,
+        description: 'Consumer electronics and software giant'
+    },
+    {
+        id: '2',
+        symbol: 'MSFT',
+        name: 'Microsoft Corporation',
+        price: 374.20,
+        sector: 'Tech',
+        marketCap: 2700000000000,
+        volatility: 3,
+        description: 'Cloud computing and software leader'
+    },
+    {
+        id: '3',
+        symbol: 'GOOGL',
+        name: 'Alphabet Inc.',
+        price: 141.80,
+        sector: 'Tech',
+        marketCap: 1700000000000,
+        volatility: 4,
+        description: 'Search engine and digital advertising'
+    },
+    {
+        id: '4',
+        symbol: 'META',
+        name: 'Meta Platforms Inc.',
+        price: 484.03,
+        sector: 'Tech',
+        marketCap: 1200000000000,
+        volatility: 6,
+        description: 'Social media and virtual reality'
+    },
+    {
+        id: '5',
+        symbol: 'AMZN',
+        name: 'Amazon.com Inc.',
+        price: 178.25,
+        sector: 'Tech',
+        marketCap: 1800000000000,
+        volatility: 5,
+        description: 'E-commerce and cloud services'
+    },
+    {
+        id: '6',
+        symbol: 'NVDA',
+        name: 'NVIDIA Corporation',
+        price: 495.22,
+        sector: 'Tech',
+        marketCap: 1200000000000,
+        volatility: 8,
+        description: 'GPU and AI chip manufacturer'
+    },
+    {
+        id: '7',
+        symbol: 'TSLA',
+        name: 'Tesla Inc.',
+        price: 242.84,
+        sector: 'Tech',
+        marketCap: 750000000000,
+        volatility: 9,
+        description: 'Electric vehicles and energy storage'
+    },
+
+    // Finance
+    {
+        id: '8',
+        symbol: 'JPM',
+        name: 'JPMorgan Chase & Co.',
+        price: 198.73,
+        sector: 'Finance',
+        marketCap: 570000000000,
+        volatility: 4,
+        description: 'Global investment banking'
+    },
+    {
+        id: '9',
+        symbol: 'BAC',
+        name: 'Bank of America Corp.',
+        price: 42.15,
+        sector: 'Finance',
+        marketCap: 330000000000,
+        volatility: 4,
+        description: 'Consumer and commercial banking'
+    },
+    {
+        id: '10',
+        symbol: 'GS',
+        name: 'Goldman Sachs Group',
+        price: 478.52,
+        sector: 'Finance',
+        marketCap: 160000000000,
+        volatility: 5,
+        description: 'Investment banking and securities'
+    },
+    {
+        id: '11',
+        symbol: 'V',
+        name: 'Visa Inc.',
+        price: 285.67,
+        sector: 'Finance',
+        marketCap: 560000000000,
+        volatility: 3,
+        description: 'Digital payments technology'
+    },
+    {
+        id: '12',
+        symbol: 'MA',
+        name: 'Mastercard Inc.',
+        price: 461.23,
+        sector: 'Finance',
+        marketCap: 430000000000,
+        volatility: 3,
+        description: 'Global payment processing'
+    },
+
+    // Healthcare
+    {
+        id: '13',
+        symbol: 'JNJ',
+        name: 'Johnson & Johnson',
+        price: 156.89,
+        sector: 'Healthcare',
+        marketCap: 380000000000,
+        volatility: 2,
+        description: 'Pharmaceuticals and medical devices'
+    },
+    {
+        id: '14',
+        symbol: 'UNH',
+        name: 'UnitedHealth Group',
+        price: 524.67,
+        sector: 'Healthcare',
+        marketCap: 480000000000,
+        volatility: 3,
+        description: 'Health insurance and care services'
+    },
+    {
+        id: '15',
+        symbol: 'PFE',
+        name: 'Pfizer Inc.',
+        price: 28.45,
+        sector: 'Healthcare',
+        marketCap: 160000000000,
+        volatility: 5,
+        description: 'Biopharmaceutical research'
+    },
+    {
+        id: '16',
+        symbol: 'MRNA',
+        name: 'Moderna Inc.',
+        price: 62.33,
+        sector: 'Healthcare',
+        marketCap: 24000000000,
+        volatility: 8,
+        description: 'mRNA therapeutics and vaccines'
+    },
+
+    // Consumer
+    {
+        id: '17',
+        symbol: 'WMT',
+        name: 'Walmart Inc.',
+        price: 178.92,
+        sector: 'Consumer',
+        marketCap: 480000000000,
+        volatility: 2,
+        description: 'Retail and e-commerce giant'
+    },
+    {
+        id: '18',
+        symbol: 'COST',
+        name: 'Costco Wholesale',
+        price: 882.45,
+        sector: 'Consumer',
+        marketCap: 390000000000,
+        volatility: 3,
+        description: 'Membership warehouse retailer'
+    },
+    {
+        id: '19',
+        symbol: 'NKE',
+        name: 'Nike Inc.',
+        price: 76.52,
+        sector: 'Consumer',
+        marketCap: 115000000000,
+        volatility: 5,
+        description: 'Athletic footwear and apparel'
+    },
+    {
+        id: '20',
+        symbol: 'SBUX',
+        name: 'Starbucks Corporation',
+        price: 96.84,
+        sector: 'Consumer',
+        marketCap: 110000000000,
+        volatility: 4,
+        description: 'Coffeehouse chain'
+    },
+    {
+        id: '21',
+        symbol: 'MCD',
+        name: 'McDonald\'s Corporation',
+        price: 294.73,
+        sector: 'Consumer',
+        marketCap: 210000000000,
+        volatility: 2,
+        description: 'Fast food restaurant chain'
+    },
+
+    // Energy
+    {
+        id: '22',
+        symbol: 'XOM',
+        name: 'Exxon Mobil Corporation',
+        price: 111.28,
+        sector: 'Energy',
+        marketCap: 440000000000,
+        volatility: 6,
+        description: 'Oil and gas exploration'
+    },
+    {
+        id: '23',
+        symbol: 'CVX',
+        name: 'Chevron Corporation',
+        price: 157.92,
+        sector: 'Energy',
+        marketCap: 290000000000,
+        volatility: 6,
+        description: 'Integrated energy company'
+    },
+
+    // Crypto/Fintech
+    {
+        id: '24',
+        symbol: 'COIN',
+        name: 'Coinbase Global',
+        price: 285.45,
+        sector: 'Crypto',
+        marketCap: 68000000000,
+        volatility: 10,
+        description: 'Cryptocurrency exchange platform'
+    },
+    {
+        id: '25',
+        symbol: 'SQ',
+        name: 'Block Inc.',
+        price: 78.92,
+        sector: 'Crypto',
+        marketCap: 48000000000,
+        volatility: 7,
+        description: 'Digital payments and Bitcoin'
+    },
+    {
+        id: '26',
+        symbol: 'PYPL',
+        name: 'PayPal Holdings',
+        price: 81.34,
+        sector: 'Crypto',
+        marketCap: 87000000000,
+        volatility: 6,
+        description: 'Online payment solutions'
+    },
+
+    // Entertainment
+    {
+        id: '27',
+        symbol: 'DIS',
+        name: 'The Walt Disney Company',
+        price: 112.58,
+        sector: 'Entertainment',
+        marketCap: 205000000000,
+        volatility: 5,
+        description: 'Media and entertainment conglomerate'
+    },
+    {
+        id: '28',
+        symbol: 'NFLX',
+        name: 'Netflix Inc.',
+        price: 682.33,
+        sector: 'Entertainment',
+        marketCap: 295000000000,
+        volatility: 6,
+        description: 'Streaming entertainment service'
+    },
+
+    // Additional Consumer/Retail
+    {
+        id: '29',
+        symbol: 'TGT',
+        name: 'Target Corporation',
+        price: 148.67,
+        sector: 'Consumer',
+        marketCap: 68000000000,
+        volatility: 4,
+        description: 'General merchandise retailer'
+    },
+    {
+        id: '30',
+        symbol: 'HD',
+        name: 'The Home Depot',
+        price: 382.91,
+        sector: 'Consumer',
+        marketCap: 380000000000,
+        volatility: 3,
+        description: 'Home improvement retailer'
+    },
+    // Indices
+    {
+        id: '31',
+        symbol: 'SPY',
+        name: 'SPDR S&P 500 ETF',
+        price: 508.00,
+        sector: 'Index',
+        marketCap: 500000000000,
+        volatility: 2,
+        description: 'S&P 500 Index Fund'
+    },
+    {
+        id: '32',
+        symbol: 'QQQ',
+        name: 'Invesco QQQ Trust',
+        price: 438.00,
+        sector: 'Index',
+        marketCap: 200000000000,
+        volatility: 3,
+        description: 'Nasdaq-100 Index Fund'
+    },
+
+    // Meme Stocks
+    {
+        id: '33',
+        symbol: 'GME',
+        name: 'GameStop Corp.',
+        price: 14.50,
+        sector: 'Consumer',
+        marketCap: 4000000000,
+        volatility: 9,
+        description: 'Video game retailer & meme king'
+    },
+    {
+        id: '34',
+        symbol: 'AMC',
+        name: 'AMC Entertainment',
+        price: 4.20,
+        sector: 'Entertainment',
+        marketCap: 1000000000,
+        volatility: 9,
+        description: 'Theatrical exhibition company'
+    },
+    {
+        id: '35',
+        symbol: 'BB',
+        name: 'BlackBerry Ltd.',
+        price: 2.80,
+        sector: 'Tech',
+        marketCap: 1600000000,
+        volatility: 7,
+        description: 'Cybersecurity and IoT software'
+    },
+
+    // More Crypto
+    {
+        id: '36',
+        symbol: 'ETH',
+        name: 'Ethereum',
+        price: 3200.00,
+        sector: 'Crypto',
+        marketCap: 380000000000,
+        volatility: 8,
+        description: 'Smart contract blockchain'
+    },
+    {
+        id: '37',
+        symbol: 'SOL',
+        name: 'Solana',
+        price: 145.00,
+        sector: 'Crypto',
+        marketCap: 65000000000,
+        volatility: 9,
+        description: 'High-performance blockchain'
+    },
+    {
+        id: '38',
+        symbol: 'DOGE',
+        name: 'Dogecoin',
+        price: 0.12,
+        sector: 'Crypto',
+        marketCap: 17000000000,
+        volatility: 10,
+        description: 'The people\'s crypto'
+    },
+
+    // Luxury & Auto
+    {
+        id: '39',
+        symbol: 'RACE',
+        name: 'Ferrari N.V.',
+        price: 410.00,
+        sector: 'Consumer',
+        marketCap: 75000000000,
+        volatility: 3,
+        description: 'Luxury sports car manufacturer'
+    },
+    {
+        id: '40',
+        symbol: 'LVMH',
+        name: 'LVMH Moët Hennessy',
+        price: 850.00,
+        sector: 'Consumer',
+        marketCap: 420000000000,
+        volatility: 3,
+        description: 'Luxury goods conglomerate'
+    },
+
+    // High Growth Tech
+    {
+        id: '41',
+        symbol: 'AMD',
+        name: 'Advanced Micro Devices',
+        price: 175.00,
+        sector: 'Tech',
+        marketCap: 280000000000,
+        volatility: 6,
+        description: 'Semiconductor company'
+    },
+    {
+        id: '42',
+        symbol: 'PLTR',
+        name: 'Palantir Technologies',
+        price: 24.50,
+        sector: 'Tech',
+        marketCap: 54000000000,
+        volatility: 7,
+        description: 'Big data analytics'
+    },
+    {
+        id: '43',
+        symbol: 'UBER',
+        name: 'Uber Technologies',
+        price: 78.00,
+        sector: 'Tech',
+        marketCap: 160000000000,
+        volatility: 5,
+        description: 'Ride-hailing and delivery'
+    },
+    {
+        id: '44',
+        symbol: 'ABNB',
+        name: 'Airbnb Inc.',
+        price: 165.00,
+        sector: 'Consumer',
+        marketCap: 105000000000,
+        volatility: 5,
+        description: 'Vacation rental marketplace'
+    },
+    {
+        id: '45',
+        symbol: 'RDDT',
+        name: 'Reddit Inc.',
+        price: 55.00,
+        sector: 'Tech',
+        marketCap: 9000000000,
+        volatility: 8,
+        description: 'Social news aggregation'
+    },
+    {
+        id: '46',
+        symbol: 'SPOT',
+        name: 'Spotify Technology',
+        price: 195.00,
+        sector: 'Tech',
+        marketCap: 38000000000,
+        volatility: 6,
+        description: 'Music streaming platform'
+    },
+    {
+        id: '47',
+        symbol: 'SHOP',
+        name: 'Shopify Inc.',
+        price: 85.00,
+        sector: 'Tech',
+        marketCap: 110000000000,
+        volatility: 7,
+        description: 'E-commerce platform for online stores'
+    },
+    {
+        id: '48',
+        symbol: 'SQ',
+        name: 'Block Inc.',
+        price: 78.00,
+        sector: 'Finance',
+        marketCap: 48000000000,
+        volatility: 7,
+        description: 'Digital payments and Bitcoin'
+    },
+    {
+        id: '49',
+        symbol: 'RBLX',
+        name: 'Roblox Corporation',
+        price: 48.00,
+        sector: 'Tech',
+        marketCap: 30000000000,
+        volatility: 8,
+        description: 'Online gaming platform and creation'
+    },
+    {
+        id: '50',
+        symbol: 'PLTR',
+        name: 'Palantir Technologies',
+        price: 32.00,
+        sector: 'Tech',
+        marketCap: 70000000000,
+        volatility: 9,
+        description: 'Big data analytics and AI'
+    },
+    // Tech (15 more)
+    {
+        id: '51',
+        symbol: 'AMD',
+        name: 'Advanced Micro Devices',
+        price: 145.00,
+        sector: 'Tech',
+        marketCap: 240000000000,
+        volatility: 7,
+        description: 'Semiconductor and processor manufacturer'
+    },
+    {
+        id: '52',
+        symbol: 'INTC',
+        name: 'Intel Corporation',
+        price: 43.00,
+        sector: 'Tech',
+        marketCap: 180000000000,
+        volatility: 5,
+        description: 'Microprocessor and chip maker'
+    },
+    {
+        id: '53',
+        symbol: 'CRM',
+        name: 'Salesforce Inc.',
+        price: 265.00,
+        sector: 'Tech',
+        marketCap: 260000000000,
+        volatility: 5,
+        description: 'Cloud-based software and CRM'
+    },
+    {
+        id: '54',
+        symbol: 'NOW',
+        name: 'ServiceNow Inc.',
+        price: 725.00,
+        sector: 'Tech',
+        marketCap: 150000000000,
+        volatility: 6,
+        description: 'Cloud computing and IT service management'
+    },
+    {
+        id: '55',
+        symbol: 'ADBE',
+        name: 'Adobe Inc.',
+        price: 565.00,
+        sector: 'Tech',
+        marketCap: 260000000000,
+        volatility: 4,
+        description: 'Creative software and digital marketing'
+    },
+    {
+        id: '56',
+        symbol: 'ZM',
+        name: 'Zoom Video Communications',
+        price: 68.00,
+        sector: 'Tech',
+        marketCap: 21000000000,
+        volatility: 8,
+        description: 'Video conferencing platform'
+    },
+    {
+        id: '57',
+        symbol: 'DOCU',
+        name: 'DocuSign Inc.',
+        price: 58.00,
+        sector: 'Tech',
+        marketCap: 12000000000,
+        volatility: 7,
+        description: 'Electronic signature technology'
+    },
+    {
+        id: '58',
+        symbol: 'DDOG',
+        name: 'Datadog Inc.',
+        price: 125.00,
+        sector: 'Tech',
+        marketCap: 42000000000,
+        volatility: 7,
+        description: 'Cloud monitoring and analytics'
+    },
+    {
+        id: '59',
+        symbol: 'SNOW',
+        name: 'Snowflake Inc.',
+        price: 175.00,
+        sector: 'Tech',
+        marketCap: 58000000000,
+        volatility: 8,
+        description: 'Cloud data platform and warehousing'
+    },
+    {
+        id: '60',
+        symbol: 'NET',
+        name: 'Cloudflare Inc.',
+        price: 95.00,
+        sector: 'Tech',
+        marketCap: 33000000000,
+        volatility: 7,
+        description: 'Web infrastructure and security'
+    },
+    {
+        id: '61',
+        symbol: 'TWLO',
+        name: 'Twilio Inc.',
+        price: 68.00,
+        sector: 'Tech',
+        marketCap: 13000000000,
+        volatility: 8,
+        description: 'Cloud communications platform'
+    },
+    {
+        id: '62',
+        symbol: 'CRWD',
+        name: 'CrowdStrike Holdings',
+        price: 285.00,
+        sector: 'Tech',
+        marketCap: 68000000000,
+        volatility: 7,
+        description: 'Cybersecurity and endpoint protection'
+    },
+    {
+        id: '63',
+        symbol: 'OKTA',
+        name: 'Okta Inc.',
+        price: 105.00,
+        sector: 'Tech',
+        marketCap: 17000000000,
+        volatility: 7,
+        description: 'Identity and access management'
+    },
+    {
+        id: '64',
+        symbol: 'ZS',
+        name: 'Zscaler Inc.',
+        price: 210.00,
+        sector: 'Tech',
+        marketCap: 31000000000,
+        volatility: 8,
+        description: 'Cloud security platform'
+    },
+    {
+        id: '65',
+        symbol: 'PANW',
+        name: 'Palo Alto Networks',
+        price: 325.00,
+        sector: 'Tech',
+        marketCap: 105000000000,
+        volatility: 6,
+        description: 'Cybersecurity and firewall solutions'
+    },
+    // Finance (10)
+    {
+        id: '66',
+        symbol: 'GS',
+        name: 'Goldman Sachs Group',
+        price: 425.00,
+        sector: 'Finance',
+        marketCap: 145000000000,
+        volatility: 5,
+        description: 'Investment banking and securities'
+    },
+    {
+        id: '67',
+        symbol: 'MS',
+        name: 'Morgan Stanley',
+        price: 98.00,
+        sector: 'Finance',
+        marketCap: 165000000000,
+        volatility: 5,
+        description: 'Investment banking and wealth management'
+    },
+    {
+        id: '68',
+        symbol: 'AXP',
+        name: 'American Express',
+        price: 195.00,
+        sector: 'Finance',
+        marketCap: 140000000000,
+        volatility: 4,
+        description: 'Credit cards and payment processing'
+    },
+    {
+        id: '69',
+        symbol: 'SCHW',
+        name: 'Charles Schwab',
+        price: 72.00,
+        sector: 'Finance',
+        marketCap: 135000000000,
+        volatility: 4,
+        description: 'Brokerage and banking services'
+    },
+    {
+        id: '70',
+        symbol: 'C',
+        name: 'Citigroup Inc.',
+        price: 62.00,
+        sector: 'Finance',
+        marketCap: 115000000000,
+        volatility: 6,
+        description: 'Global banking and financial services'
+    },
+    {
+        id: '71',
+        symbol: 'WFC',
+        name: 'Wells Fargo & Company',
+        price: 58.00,
+        sector: 'Finance',
+        marketCap: 195000000000,
+        volatility: 5,
+        description: 'Banking and financial services'
+    },
+    {
+        id: '72',
+        symbol: 'USB',
+        name: 'U.S. Bancorp',
+        price: 48.00,
+        sector: 'Finance',
+        marketCap: 70000000000,
+        volatility: 4,
+        description: 'Banking and wealth management'
+    },
+    {
+        id: '73',
+        symbol: 'PNC',
+        name: 'PNC Financial Services',
+        price: 165.00,
+        sector: 'Finance',
+        marketCap: 68000000000,
+        volatility: 4,
+        description: 'Regional banking services'
+    },
+    {
+        id: '74',
+        symbol: 'TFC',
+        name: 'Truist Financial',
+        price: 42.00,
+        sector: 'Finance',
+        marketCap: 54000000000,
+        volatility: 4,
+        description: 'Banking and insurance services'
+    },
+    {
+        id: '75',
+        symbol: 'COF',
+        name: 'Capital One Financial',
+        price: 135.00,
+        sector: 'Finance',
+        marketCap: 52000000000,
+        volatility: 6,
+        description: 'Banking and credit card services'
+    },
+    // Healthcare (8)
+    {
+        id: '76',
+        symbol: 'JNJ',
+        name: 'Johnson & Johnson',
+        price: 158.00,
+        sector: 'Healthcare',
+        marketCap: 380000000000,
+        volatility: 3,
+        description: 'Pharmaceuticals and medical devices'
+    },
+    {
+        id: '77',
+        symbol: 'PFE',
+        name: 'Pfizer Inc.',
+        price: 28.00,
+        sector: 'Healthcare',
+        marketCap: 160000000000,
+        volatility: 5,
+        description: 'Pharmaceutical and vaccine development'
+    },
+    {
+        id: '78',
+        symbol: 'ABBV',
+        name: 'AbbVie Inc.',
+        price: 175.00,
+        sector: 'Healthcare',
+        marketCap: 310000000000,
+        volatility: 4,
+        description: 'Biopharmaceutical company'
+    },
+    {
+        id: '79',
+        symbol: 'UNH',
+        name: 'UnitedHealth Group',
+        price: 525.00,
+        sector: 'Healthcare',
+        marketCap: 490000000000,
+        volatility: 3,
+        description: 'Health insurance and care services'
+    },
+    {
+        id: '80',
+        symbol: 'CVS',
+        name: 'CVS Health Corporation',
+        price: 78.00,
+        sector: 'Healthcare',
+        marketCap: 100000000000,
+        volatility: 4,
+        description: 'Pharmacy and healthcare services'
+    },
+    {
+        id: '81',
+        symbol: 'MRK',
+        name: 'Merck & Co.',
+        price: 108.00,
+        sector: 'Healthcare',
+        marketCap: 275000000000,
+        volatility: 4,
+        description: 'Pharmaceutical research and development'
+    },
+    {
+        id: '82',
+        symbol: 'LLY',
+        name: 'Eli Lilly and Company',
+        price: 785.00,
+        sector: 'Healthcare',
+        marketCap: 740000000000,
+        volatility: 5,
+        description: 'Pharmaceuticals and biotechnology'
+    },
+    {
+        id: '83',
+        symbol: 'GILD',
+        name: 'Gilead Sciences',
+        price: 87.00,
+        sector: 'Healthcare',
+        marketCap: 110000000000,
+        volatility: 5,
+        description: 'Biopharmaceutical company'
+    },
+    // Consumer (7)
+    {
+        id: '84',
+        symbol: 'WMT',
+        name: 'Walmart Inc.',
+        price: 168.00,
+        sector: 'Consumer',
+        marketCap: 455000000000,
+        volatility: 3,
+        description: 'Retail and e-commerce giant'
+    },
+    {
+        id: '85',
+        symbol: 'HD',
+        name: 'Home Depot',
+        price: 385.00,
+        sector: 'Consumer',
+        marketCap: 390000000000,
+        volatility: 4,
+        description: 'Home improvement retail'
+    },
+    {
+        id: '86',
+        symbol: 'NKE',
+        name: 'Nike Inc.',
+        price: 95.00,
+        sector: 'Consumer',
+        marketCap: 145000000000,
+        volatility: 5,
+        description: 'Athletic footwear and apparel'
+    },
+    {
+        id: '87',
+        symbol: 'SBUX',
+        name: 'Starbucks Corporation',
+        price: 98.00,
+        sector: 'Consumer',
+        marketCap: 110000000000,
+        volatility: 5,
+        description: 'Coffee chain and beverages'
+    },
+    {
+        id: '88',
+        symbol: 'MCD',
+        name: 'McDonald\'s Corporation',
+        price: 295.00,
+        sector: 'Consumer',
+        marketCap: 215000000000,
+        volatility: 3,
+        description: 'Fast food restaurant chain'
+    },
+    {
+        id: '89',
+        symbol: 'DIS',
+        name: 'Walt Disney Company',
+        price: 115.00,
+        sector: 'Consumer',
+        marketCap: 210000000000,
+        volatility: 6,
+        description: 'Entertainment and media conglomerate'
+    },
+    {
+        id: '90',
+        symbol: 'LULU',
+        name: 'Lululemon Athletica',
+        price: 385.00,
+        sector: 'Consumer',
+        marketCap: 48000000000,
+        volatility: 6,
+        description: 'Athletic apparel and accessories'
+    },
+    // Crypto (5)
+    {
+        id: '91',
+        symbol: 'MARA',
+        name: 'Marathon Digital',
+        price: 18.00,
+        sector: 'Crypto',
+        marketCap: 5500000000,
+        volatility: 10,
+        description: 'Bitcoin mining operations'
+    },
+    {
+        id: '92',
+        symbol: 'RIOT',
+        name: 'Riot Platforms',
+        price: 11.00,
+        sector: 'Crypto',
+        marketCap: 3200000000,
+        volatility: 10,
+        description: 'Cryptocurrency mining'
+    },
+    {
+        id: '93',
+        symbol: 'MSTR',
+        name: 'MicroStrategy Inc.',
+        price: 425.00,
+        sector: 'Crypto',
+        marketCap: 85000000000,
+        volatility: 9,
+        description: 'Business intelligence and Bitcoin holder'
+    },
+    {
+        id: '94',
+        symbol: 'HUT',
+        name: 'Hut 8 Mining',
+        price: 22.00,
+        sector: 'Crypto',
+        marketCap: 2800000000,
+        volatility: 10,
+        description: 'Bitcoin mining and digital assets'
+    },
+    {
+        id: '95',
+        symbol: 'CIFR',
+        name: 'Cipher Mining',
+        price: 5.50,
+        sector: 'Crypto',
+        marketCap: 1500000000,
+        volatility: 10,
+        description: 'Bitcoin mining infrastructure'
+    },
+    // Energy (5)
+    {
+        id: '96',
+        symbol: 'XOM',
+        name: 'Exxon Mobil',
+        price: 110.00,
+        sector: 'Energy',
+        marketCap: 450000000000,
+        volatility: 5,
+        description: 'Oil and gas production'
+    },
+    {
+        id: '97',
+        symbol: 'CVX',
+        name: 'Chevron Corporation',
+        price: 158.00,
+        sector: 'Energy',
+        marketCap: 290000000000,
+        volatility: 5,
+        description: 'Integrated energy company'
+    },
+    {
+        id: '98',
+        symbol: 'COP',
+        name: 'ConocoPhillips',
+        price: 115.00,
+        sector: 'Energy',
+        marketCap: 140000000000,
+        volatility: 6,
+        description: 'Exploration and production'
+    },
+    {
+        id: '99',
+        symbol: 'SLB',
+        name: 'Schlumberger',
+        price: 48.00,
+        sector: 'Energy',
+        marketCap: 68000000000,
+        volatility: 6,
+        description: 'Oilfield services and technology'
+    },
+    {
+        id: '100',
+        symbol: 'OXY',
+        name: 'Occidental Petroleum',
+        price: 58.00,
+        sector: 'Energy',
+        marketCap: 52000000000,
+        volatility: 7,
+        description: 'Oil and gas exploration'
+    }
+];
+
+// Helper function to initialize stocks with price history
+export function initializeStocks(): Stock[] {
+    const now = Date.now();
+    return STOCK_CATALOG.map(stock => ({
+        ...stock,
+        history: Array.from({ length: 50 }, (_, i) => ({
+            timestamp: now - (49 - i) * 60000, // 1 minute intervals
+            value: stock.price * (1 + (Math.random() - 0.5) * 0.02) // ±1% variation
+        }))
+    }));
+}
