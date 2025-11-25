@@ -8,6 +8,7 @@ import { useMarketEngine } from '../hooks/useMarketEngine';
 import { useStore } from '../store/useStore';
 import { NewsToast } from '../components/NewsToast';
 import { LevelUpModal } from '../components/LevelUpModal';
+import { ToastContainer } from '../components/ToastContainer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { COLORS } from '../constants/theme';
 import { analytics } from '../utils/analytics';
@@ -95,6 +96,7 @@ export default function RootLayout() {
                         level={level}
                         onClose={() => setShowLevelUp(false)}
                     />
+                    <ToastContainer />
                 </View>
             </SafeAreaProvider>
         </ErrorBoundary>
