@@ -187,16 +187,82 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
     return null;
 }
 
-export function shouldGenerateNews(lastNewsTime: number): boolean {
+/**
+ * Intelligent news generation timing
+ * Considers market volatility and user activity
+ */
+export function shouldGenerateNews(
+    lastNewsTime: number,
+    marketVolatility: number = 1,
+    userActivity: number = 0.5
+): boolean {
     const timeSinceLastNews = Date.now() - lastNewsTime;
-    const MIN_INTERVAL = 15000; // 15 seconds minimum (was 30s)
-    const MAX_INTERVAL = 60000; // 1 minute maximum (was 2m)
 
-    if (timeSinceLastNews < MIN_INTERVAL) return false;
+    // Minimum 10 seconds between news (faster for active users)
+    const minInterval = userActivity > 0.7 ? 8000 : 12000;
+    if (timeSinceLastNews < minInterval) return false;
 
-    // Probability increases with time
-    const probability = Math.min((timeSinceLastNews - MIN_INTERVAL) / (MAX_INTERVAL - MIN_INTERVAL), 1);
-    return Math.random() < probability * 0.8; // 80% max chance per check (was 30%)
+    // Maximum 45 seconds - force news generation
+    if (timeSinceLastNews > 45000) return true;
+
+    // Base probability increases with time
+    const maxInterval = 45000;
+    const timeRange = maxInterval - minInterval;
+    const timePassed = timeSinceLastNews - minInterval;
+    let probability = Math.min(0.8, (timePassed / timeRange) * 0.8);
+
+    // Boost probability during high volatility (more news when market is active)
+    probability *= (1 + marketVolatility * 0.5);
+
+    // Boost probability when user is active (keep them engaged)
+    probability *= (1 + userActivity * 0.3);
+
+    // Cap at 90%
+    probability = Math.min(0.9, probability);
+
+    return Math.random() < probability;
+}
+
+/**
+ * Calculate market volatility from stock price movements
+ */
+export function calculateMarketVolatility(stocks: Stock[]): number {
+    if (stocks.length === 0) return 1;
+
+    let totalVolatility = 0;
+    let count = 0;
+
+    stocks.forEach(stock => {
+        if (stock.history.length >= 2) {
+            const recent = stock.history[stock.history.length - 1].value;
+            const previous = stock.history[stock.history.length - 2].value;
+            const change = Math.abs((recent - previous) / previous);
+            totalVolatility += change;
+            count++;
+        }
+    });
+
+    if (count === 0) return 1;
+
+    // Normalize to 0-2 range (1 = normal, 2 = very volatile)
+    const avgVolatility = totalVolatility / count;
+    return Math.min(2, 1 + avgVolatility * 20);
+}
+
+/**
+ * Calculate user activity level (0-1)
+ */
+export function calculateUserActivity(
+    recentTrades: number,
+    timeSinceLastTrade: number
+): number {
+    // Recent trades boost activity
+    const tradeScore = Math.min(1, recentTrades / 5);
+
+    // Time decay
+    const timeScore = Math.max(0, 1 - (timeSinceLastTrade / 60000)); // Decay over 1 minute
+
+    return (tradeScore * 0.6 + timeScore * 0.4);
 }
 
 export function calculateNewsImpact(currentPrice: number, event: NewsEvent, symbol: string, sector: string): number {

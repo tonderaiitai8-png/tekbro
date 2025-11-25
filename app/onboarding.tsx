@@ -1,168 +1,383 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+    useSharedValue,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    interpolate,
+    Extrapolate,
+    withSpring,
+    withTiming,
+} from 'react-native-reanimated';
+import PagerView from 'react-native-pager-view';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
-import * as Haptics from 'expo-haptics';
-import { TrendingUp, Shield, Trophy, ArrowRight } from 'lucide-react-native';
+import { HapticPatterns } from '../utils/haptics';
+import { TrendingUp, Shield, Trophy, Zap, Rocket, ArrowRight } from 'lucide-react-native';
+import { AnimatedDots } from '../components/AnimatedDots';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const SLIDES = [
     {
-        id: '1',
-        title: 'Learn to Trade',
-        description: 'Master the stock market with real-time data and zero risk.',
-        icon: <TrendingUp size={64} color={COLORS.accent} strokeWidth={1.5} />,
+        id: 0,
+        title: 'Welcome to\nPaperTrader',
+        subtitle: 'Master the stock market\nwith zero risk',
+        icon: Rocket,
+        color: COLORS.accent,
+        gradient: ['#00FF9D', '#00D4FF'],
     },
     {
-        id: '2',
-        title: 'Risk-Free Practice',
-        description: 'Start with £10,000 in virtual cash. Make mistakes here, not with real money.',
-        icon: <Shield size={64} color={COLORS.positive} strokeWidth={1.5} />,
+        id: 1,
+        title: 'Real-Time\nSimulation',
+        subtitle: 'Live market data\nRealistic price movements\nBreaking news alerts',
+        icon: Zap,
+        color: COLORS.positive,
+        gradient: ['#00FF9D', '#7FFF00'],
     },
     {
-        id: '3',
-        title: 'Compete & Win',
-        description: 'Level up, unlock achievements, and become a top trader.',
-        icon: <Trophy size={64} color={COLORS.warning} strokeWidth={1.5} />,
+        id: 2,
+        title: 'Risk-Free\nPractice',
+        subtitle: 'Start with $10,000 virtual cash\nMake mistakes here, not with real money\nLearn without losing',
+        icon: Shield,
+        color: COLORS.warning,
+        gradient: ['#FFD700', '#FFA500'],
+    },
+    {
+        id: 3,
+        title: 'Gamified\nLearning',
+        subtitle: 'Unlock 50+ achievements\nComplete daily challenges\nLevel up your skills',
+        icon: Trophy,
+        color: COLORS.accent,
+        gradient: ['#9D00FF', '#FF00FF'],
+    },
+    {
+        id: 4,
+        title: 'Ready to\nStart Trading?',
+        subtitle: 'Join thousands of traders\nmastering the market',
+        icon: TrendingUp,
+        color: COLORS.positive,
+        gradient: ['#00FF9D', '#00FFD4'],
     },
 ];
 
 export default function OnboardingScreen() {
     const router = useRouter();
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const pagerRef = useRef<PagerView>(null);
+    const scrollX = useSharedValue(0);
+    const [currentPage, setCurrentPage] = useState(0);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        scrollX.value = page;
+        HapticPatterns.selection();
+    };
+
+    const handleNext = () => {
+        if (currentPage < SLIDES.length - 1) {
+            pagerRef.current?.setPage(currentPage + 1);
+        }
+    };
 
     const handleFinish = async () => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        HapticPatterns.success();
         await AsyncStorage.setItem('onboarding_completed', 'true');
         router.replace('/(tabs)');
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <FlatList
-                data={SLIDES}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
-                onMomentumScrollEnd={(e) => {
-                    const index = Math.round(e.nativeEvent.contentOffset.x / width);
-                    setCurrentIndex(index);
-                }}
-                renderItem={({ item }) => (
-                    <View style={styles.slide}>
-                        <View style={styles.iconContainer}>
-                            {item.icon}
-                        </View>
-                        <Text style={styles.title}>{item.title}</Text>
-                        <Text style={styles.description}>{item.description}</Text>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            {/* Parallax Background */}
+            <ParallaxBackground scrollX={scrollX} />
+
+            {/* Pager */}
+            <PagerView
+                ref={pagerRef}
+                style={styles.pager}
+                initialPage={0}
+                onPageSelected={(e) => handlePageChange(e.nativeEvent.position)}
+            >
+                {SLIDES.map((slide, index) => (
+                    <View key={slide.id} style={styles.page}>
+                        <SlideContent slide={slide} index={index} scrollX={scrollX} />
                     </View>
-                )}
-            />
+                ))}
+            </PagerView>
 
+            {/* Footer */}
             <View style={styles.footer}>
-                <View style={styles.pagination}>
-                    {SLIDES.map((_, index) => (
-                        <View
-                            key={index}
-                            style={[
-                                styles.dot,
-                                currentIndex === index && styles.activeDot,
-                            ]}
-                        />
-                    ))}
-                </View>
+                {/* Animated Dots */}
+                <AnimatedDots
+                    data={SLIDES}
+                    scrollX={scrollX}
+                    dotSize={10}
+                    activeDotWidth={30}
+                />
 
+                {/* Action Button */}
                 <TouchableOpacity
-                    style={styles.button}
-                    onPress={currentIndex === SLIDES.length - 1 ? handleFinish : undefined}
+                    style={[
+                        styles.button,
+                        {
+                            backgroundColor: currentPage === SLIDES.length - 1
+                                ? COLORS.accent
+                                : COLORS.bgElevated,
+                        },
+                    ]}
+                    onPress={currentPage === SLIDES.length - 1 ? handleFinish : handleNext}
                     activeOpacity={0.8}
                 >
-                    {currentIndex === SLIDES.length - 1 ? (
+                    {currentPage === SLIDES.length - 1 ? (
                         <View style={styles.buttonContent}>
-                            <Text style={styles.buttonText}>Get Started</Text>
-                            <ArrowRight size={20} color={COLORS.bg} strokeWidth={2.5} />
+                            <Text style={[styles.buttonText, { color: COLORS.bg }]}>
+                                Let's Go!
+                            </Text>
+                            <Rocket size={20} color={COLORS.bg} />
                         </View>
                     ) : (
-                        <Text style={[styles.buttonText, { opacity: 0.3 }]}>Swipe to continue</Text>
+                        <View style={styles.buttonContent}>
+                            <Text style={[styles.buttonText, { color: COLORS.text }]}>
+                                Next
+                            </Text>
+                            <ArrowRight size={20} color={COLORS.text} />
+                        </View>
                     )}
                 </TouchableOpacity>
+
+                {/* Skip Button */}
+                {currentPage < SLIDES.length - 1 && (
+                    <TouchableOpacity
+                        style={styles.skipButton}
+                        onPress={handleFinish}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.skipText}>Skip</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         </SafeAreaView>
     );
 }
+
+// Slide Content Component
+const SlideContent: React.FC<{ slide: typeof SLIDES[0]; index: number; scrollX: Animated.SharedValue<number> }> = ({
+    slide,
+    index,
+    scrollX,
+}) => {
+    const Icon = slide.icon;
+
+    const iconStyle = useAnimatedStyle(() => {
+        const inputRange = [(index - 1), index, (index + 1)];
+
+        const scale = interpolate(
+            scrollX.value,
+            inputRange,
+            [0.5, 1, 0.5],
+            Extrapolate.CLAMP
+        );
+
+        const rotate = interpolate(
+            scrollX.value,
+            inputRange,
+            [-20, 0, 20],
+            Extrapolate.CLAMP
+        );
+
+        const opacity = interpolate(
+            scrollX.value,
+            inputRange,
+            [0.3, 1, 0.3],
+            Extrapolate.CLAMP
+        );
+
+        return {
+            transform: [
+                { scale: withSpring(scale, { damping: 15 }) },
+                { rotate: `${rotate}deg` },
+            ],
+            opacity,
+        };
+    });
+
+    const textStyle = useAnimatedStyle(() => {
+        const inputRange = [(index - 1), index, (index + 1)];
+
+        const translateY = interpolate(
+            scrollX.value,
+            inputRange,
+            [50, 0, -50],
+            Extrapolate.CLAMP
+        );
+
+        const opacity = interpolate(
+            scrollX.value,
+            inputRange,
+            [0, 1, 0],
+            Extrapolate.CLAMP
+        );
+
+        return {
+            transform: [{ translateY }],
+            opacity,
+        };
+    });
+
+    return (
+        <View style={styles.slideContent}>
+            {/* Icon */}
+            <Animated.View style={[styles.iconContainer, iconStyle]}>
+                <View style={[styles.iconBg, { backgroundColor: `${slide.color}20` }]}>
+                    <Icon size={80} color={slide.color} strokeWidth={1.5} />
+                </View>
+            </Animated.View>
+
+            {/* Text */}
+            <Animated.View style={[styles.textContainer, textStyle]}>
+                <Text style={styles.title}>{slide.title}</Text>
+                <Text style={styles.subtitle}>{slide.subtitle}</Text>
+            </Animated.View>
+        </View>
+    );
+};
+
+// Parallax Background Component
+const ParallaxBackground: React.FC<{ scrollX: Animated.SharedValue<number> }> = ({ scrollX }) => {
+    const layer1Style = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: interpolate(scrollX.value, [0, SLIDES.length - 1], [0, -SCREEN_WIDTH * 0.3]) },
+        ],
+    }));
+
+    const layer2Style = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: interpolate(scrollX.value, [0, SLIDES.length - 1], [0, -SCREEN_WIDTH * 0.5]) },
+        ],
+    }));
+
+    return (
+        <View style={styles.backgroundContainer}>
+            {/* Layer 1 - Slow */}
+            <Animated.View style={[styles.backgroundLayer, layer1Style]}>
+                <View style={[styles.orb, styles.orb1]} />
+                <View style={[styles.orb, styles.orb2]} />
+            </Animated.View>
+
+            {/* Layer 2 - Medium */}
+            <Animated.View style={[styles.backgroundLayer, layer2Style]}>
+                <View style={[styles.orb, styles.orb3]} />
+                <View style={[styles.orb, styles.orb4]} />
+            </Animated.View>
+        </View>
+    );
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    slide: {
-        width,
-        alignItems: 'center',
+    backgroundContainer: {
+        ...StyleSheet.absoluteFillObject,
+        overflow: 'hidden',
+    },
+    backgroundLayer: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    orb: {
+        position: 'absolute',
+        borderRadius: 999,
+        opacity: 0.1,
+    },
+    orb1: {
+        width: 300,
+        height: 300,
+        backgroundColor: COLORS.accent,
+        top: 100,
+        left: -50,
+    },
+    orb2: {
+        width: 200,
+        height: 200,
+        backgroundColor: COLORS.positive,
+        bottom: 200,
+        right: -30,
+    },
+    orb3: {
+        width: 250,
+        height: 250,
+        backgroundColor: COLORS.warning,
+        top: 300,
+        right: -80,
+    },
+    orb4: {
+        width: 180,
+        height: 180,
+        backgroundColor: COLORS.accent,
+        bottom: 100,
+        left: -60,
+    },
+    pager: {
+        flex: 1,
+    },
+    page: {
+        flex: 1,
         justifyContent: 'center',
+        alignItems: 'center',
+    },
+    slideContent: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
         paddingHorizontal: SPACING.xxxl,
     },
     iconContainer: {
-        width: 140,
-        height: 140,
-        borderRadius: RADIUS.xl,
-        backgroundColor: COLORS.bgElevated,
-        alignItems: 'center',
+        marginBottom: SPACING.xxxl * 2,
+    },
+    iconBg: {
+        width: 180,
+        height: 180,
+        borderRadius: 90,
         justifyContent: 'center',
-        marginBottom: SPACING.xxxl,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        alignItems: 'center',
+    },
+    textContainer: {
+        alignItems: 'center',
     },
     title: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: SPACING.lg,
+        fontSize: 40,
         fontFamily: FONTS.bold,
+        color: COLORS.text,
         textAlign: 'center',
-        letterSpacing: -0.5,
+        marginBottom: SPACING.lg,
+        letterSpacing: -1,
+        lineHeight: 48,
     },
-    description: {
-        fontSize: 16,
+    subtitle: {
+        fontSize: 18,
+        fontFamily: FONTS.regular,
         color: COLORS.textSub,
         textAlign: 'center',
-        lineHeight: 24,
-        fontFamily: FONTS.regular,
-        maxWidth: 300,
+        lineHeight: 28,
+        maxWidth: 320,
     },
     footer: {
         paddingHorizontal: SPACING.xxxl,
-        paddingBottom: SPACING.xxxl,
+        paddingBottom: SPACING.xxl,
         alignItems: 'center',
-    },
-    pagination: {
-        flexDirection: 'row',
-        gap: SPACING.sm,
-        marginBottom: SPACING.xxxl,
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: COLORS.textMuted,
-    },
-    activeDot: {
-        backgroundColor: COLORS.accent,
-        width: 24,
+        gap: SPACING.xl,
     },
     button: {
-        backgroundColor: COLORS.accent,
-        paddingVertical: SPACING.lg,
-        paddingHorizontal: SPACING.xxxl,
-        borderRadius: RADIUS.full,
         width: '100%',
+        paddingVertical: SPACING.lg,
+        borderRadius: RADIUS.full,
         alignItems: 'center',
-        height: 56,
         justifyContent: 'center',
+        height: 60,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     buttonContent: {
         flexDirection: 'row',
@@ -170,10 +385,16 @@ const styles = StyleSheet.create({
         gap: SPACING.sm,
     },
     buttonText: {
-        color: COLORS.bg,
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: 18,
         fontFamily: FONTS.bold,
-        letterSpacing: 0.3,
+        letterSpacing: 0.5,
+    },
+    skipButton: {
+        paddingVertical: SPACING.sm,
+    },
+    skipText: {
+        fontSize: FONTS.sizes.sm,
+        fontFamily: FONTS.medium,
+        color: COLORS.textMuted,
     },
 });
