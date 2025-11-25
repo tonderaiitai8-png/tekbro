@@ -3,10 +3,11 @@ import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMarketEngine } from '../hooks/useMarketEngine';
 import { useStore } from '../store/useStore';
-import { NewsToast } from '../components/NewsToast';
+import { NewsBanner } from '../components/NewsBanner';
 import { LevelUpModal } from '../components/LevelUpModal';
 import { ToastContainer } from '../components/ToastContainer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -64,41 +65,41 @@ export default function RootLayout() {
     }
 
     return (
-        <ErrorBoundary>
-            <SafeAreaProvider>
-                <StatusBar style="light" backgroundColor={COLORS.bg} />
-                <View style={{ flex: 1 }}>
-                    <Stack
-                        screenOptions={{
-                            headerShown: false,
-                            contentStyle: { backgroundColor: COLORS.bg },
-                            animation: 'slide_from_right',
-                        }}
-                    >
-                        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen
-                            name="stock/[id]"
-                            options={{
-                                presentation: 'modal',
-                                headerShown: false
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <ErrorBoundary>
+                <SafeAreaProvider>
+                    <StatusBar style="light" backgroundColor={COLORS.bg} />
+                    <View style={{ flex: 1 }}>
+                        <Stack
+                            screenOptions={{
+                                headerShown: false,
+                                contentStyle: { backgroundColor: COLORS.bg },
+                                animation: 'slide_from_right',
                             }}
-                        />
-                    </Stack>
-                    {activeNews && (
-                        <NewsToast
+                        >
+                            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+                            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                            <Stack.Screen
+                                name="stock/[id]"
+                                options={{
+                                    presentation: 'modal',
+                                    headerShown: false
+                                }}
+                            />
+                        </Stack>
+                        <NewsBanner
                             news={activeNews}
                             onDismiss={() => setActiveNews(null)}
                         />
-                    )}
-                    <LevelUpModal
-                        visible={showLevelUp}
-                        level={level}
-                        onClose={() => setShowLevelUp(false)}
-                    />
-                    <ToastContainer />
-                </View>
-            </SafeAreaProvider>
-        </ErrorBoundary>
+                        <LevelUpModal
+                            visible={showLevelUp}
+                            level={level}
+                            onClose={() => setShowLevelUp(false)}
+                        />
+                        <ToastContainer />
+                    </View>
+                </SafeAreaProvider>
+            </ErrorBoundary>
+        </GestureHandlerRootView>
     );
 }

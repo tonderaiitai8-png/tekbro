@@ -100,7 +100,7 @@ export const useMarketEngine = () => {
                     });
                 }
             }
-        }, 180000); // Check every 180 seconds (3 minutes)
+        }, 300000); // Check every 300 seconds (5 minutes)
 
         return () => clearInterval(newsInterval);
     }, [stocks, lastNewsTime, newsCooldown]);
