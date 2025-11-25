@@ -1,5 +1,8 @@
 import { Stock, NewsEvent } from '../types';
 
+// News ID counter to ensure uniqueness
+let newsIdCounter = 0;
+
 // Company-specific news templates
 const COMPANY_NEWS_TEMPLATES: Record<string, string[]> = {
     'NVDA': [
@@ -110,6 +113,10 @@ const ECONOMIC_NEWS: Array<{ headline: string; impact: number }> = [
 export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
     const random = Math.random();
 
+    // Increment unique counter
+    newsIdCounter++;
+    const uniqueId = `news-${newsIdCounter}-${Date.now()}`;
+
     // 40% company news, 25% sector news, 20% market, 15% economic
     if (random < 0.40) {
         // Company-specific news
@@ -126,7 +133,7 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
                 : -(0.05 + Math.random() * 0.10);
 
             return {
-                id: `news-${Date.now()}-${Math.random()}`,
+                id: uniqueId,
                 timestamp: Date.now(),
                 type: 'COMPANY',
                 severity: Math.abs(impact) > 0.10 ? 'HIGH' : Math.abs(impact) > 0.07 ? 'MEDIUM' : 'LOW',
@@ -149,7 +156,7 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
             : -(0.03 + Math.random() * 0.05);
 
         return {
-            id: `news-${Date.now()}-${Math.random()}`,
+            id: uniqueId,
             timestamp: Date.now(),
             type: 'SECTOR',
             severity: 'MEDIUM',
@@ -162,7 +169,7 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
         // Market-wide event
         const event = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
         return {
-            id: `news-${Date.now()}-${Math.random()}`,
+            id: uniqueId,
             timestamp: Date.now(),
             type: 'MARKET',
             severity: Math.abs(event.impact) > 0.04 ? 'HIGH' : 'MEDIUM',
@@ -173,7 +180,7 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
         // Economic news
         const event = ECONOMIC_NEWS[Math.floor(Math.random() * ECONOMIC_NEWS.length)];
         return {
-            id: `news-${Date.now()}-${Math.random()}`,
+            id: uniqueId,
             timestamp: Date.now(),
             type: 'ECONOMIC',
             severity: Math.abs(event.impact) > 0.04 ? 'HIGH' : 'MEDIUM',

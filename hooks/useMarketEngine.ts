@@ -43,11 +43,19 @@ export const useMarketEngine = () => {
         }
     }, []);
 
-    // News generation system
+    // News generation system with cooldown
+    const [newsCooldown, setNewsCooldown] = useState(false);
+
     useEffect(() => {
         if (stocks.length === 0) return;
 
         const newsInterval = setInterval(() => {
+            // Check cooldown first
+            if (newsCooldown) {
+                console.log('📰 News on cooldown, skipping...');
+                return;
+            }
+
             if (shouldGenerateNews(lastNewsTime)) {
                 console.log('📰 Generating News Event...');
                 const news = generateNewsEvent(stocks);
@@ -55,7 +63,18 @@ export const useMarketEngine = () => {
                     console.log('📰 News Generated:', news.headline);
                     setActiveNews(news);
                     setLastNewsTime(Date.now());
+                    setNewsCooldown(true);
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+                    // Auto-dismiss after 15 seconds
+                    setTimeout(() => {
+                        setActiveNews(null);
+                    }, 15000);
+
+                    // Reset cooldown after 30 seconds  
+                    setTimeout(() => {
+                        setNewsCooldown(false);
+                    }, 30000);
 
                     // APPLY NEWS IMPACT IMMEDIATELY (ONE-TIME)
                     // This prevents compounding gains/losses every tick
@@ -84,7 +103,7 @@ export const useMarketEngine = () => {
         }, 180000); // Check every 180 seconds (3 minutes)
 
         return () => clearInterval(newsInterval);
-    }, [stocks, lastNewsTime]);
+    }, [stocks, lastNewsTime, newsCooldown]);
 
     // World-class price update system (every 3 seconds)
     useEffect(() => {

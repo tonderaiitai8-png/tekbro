@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     },
     newsContent: {
         flex: 1,
-        marginLeft: SP ACING.md,
+        marginLeft: SPACING.md,
     },
     statsHeader: {
         flexDirection: 'row',
