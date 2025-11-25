@@ -119,17 +119,17 @@ export const NewsBanner: React.FC<NewsBannerProps> = ({ news, onDismiss }) => {
         }
     };
 
-    if (!news) return null;
-
-    const gradientColors = GRADIENTS[news.type] || GRADIENTS.COMPANY;
-    const Icon = ICONS[news.type] || TrendingUp;
-    const isPositive = news.impact >= 0;
+    // Always render but hide when no news (needed for animations)
+    const gradientColors = news ? (GRADIENTS[news.type] || GRADIENTS.COMPANY) : GRADIENTS.COMPANY;
+    const Icon = news ? (ICONS[news.type] || TrendingUp) : TrendingUp;
+    const isPositive = news ? news.impact >= 0 : true;
     const impactColor = isPositive ? '#10B981' : '#EF4444';
 
     return (
         <PanGestureHandler
             onGestureEvent={onGestureEvent}
             onHandlerStateChange={onHandlerStateChange}
+            enabled={!!news}
         >
             <Animated.View
                 style={[
@@ -139,6 +139,7 @@ export const NewsBanner: React.FC<NewsBannerProps> = ({ news, onDismiss }) => {
                         opacity,
                     },
                 ]}
+                pointerEvents={news ? 'auto' : 'none'}
             >
                 <LinearGradient
                     colors={gradientColors}
@@ -153,13 +154,13 @@ export const NewsBanner: React.FC<NewsBannerProps> = ({ news, onDismiss }) => {
 
                     {/* Headline */}
                     <Text style={styles.headline} numberOfLines={1}>
-                        {news.headline}
+                        {news?.headline || 'Loading...'}
                     </Text>
 
                     {/* Impact Badge */}
                     <View style={[styles.impactBadge, { backgroundColor: `${impactColor}30` }]}>
                         <Text style={[styles.impactText, { color: impactColor }]}>
-                            {isPositive ? '+' : ''}{(news.impact * 100).toFixed(1)}%
+                            {isPositive ? '+' : ''}{((news?.impact || 0) * 100).toFixed(1)}%
                         </Text>
                     </View>
 
