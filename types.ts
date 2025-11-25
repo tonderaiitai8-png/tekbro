@@ -58,17 +58,24 @@ export interface PriceAlert {
     active: boolean;
 }
 
+
 export interface DailyChallenge {
     id: string;
-    date: string; // YYYY-MM-DD
     title: string;
     description: string;
-    type: 'profit' | 'volume' | 'sector' | 'streak';
+    type: 'profit' | 'volume' | 'sector' | 'streak' | 'growth';
     target: number;
     progress: number;
-    reward: { xp: number; cash?: number };
+    xpReward: number;
     completed: boolean;
+    icon: string; // Emoji icon
 }
+
+export interface DailyChallenges {
+    date: string; // YYYY-MM-DD format
+    challenges: DailyChallenge[];
+}
+
 
 export interface LeaderboardEntry {
     id: string;
@@ -107,7 +114,7 @@ export interface AppState {
     level: number;
     username: string;
     avatar: string;
-    dailyChallenge: DailyChallenge | null;
+    dailyChallenges: DailyChallenges | null;
     loginStreak: number;
     lastLoginDate: string;
     highScore: number;
