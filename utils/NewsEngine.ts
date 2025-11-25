@@ -182,102 +182,68 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
             headline: event.headline,
             impact: event.impact
         };
+
+        // Cap at 90%
+        probability = Math.min(0.9, probability);
+
+        return Math.random() < probability;
     }
 
-    return null;
-}
+    /**
+     * Calculate market volatility from stock price movements
+     */
+    export function calculateMarketVolatility(stocks: Stock[]): number {
+        if (stocks.length === 0) return 1;
 
-/**
- * Intelligent news generation timing
- * Considers market volatility and user activity
- */
-export function shouldGenerateNews(
-    lastNewsTime: number,
-    marketVolatility: number = 1,
-    userActivity: number = 0.5
-): boolean {
-    const timeSinceLastNews = Date.now() - lastNewsTime;
+        let totalVolatility = 0;
+        let count = 0;
 
-    // Minimum 10 seconds between news (faster for active users)
-    const minInterval = userActivity > 0.7 ? 8000 : 12000;
-    if (timeSinceLastNews < minInterval) return false;
+        stocks.forEach(stock => {
+            if (stock.history.length >= 2) {
+                const recent = stock.history[stock.history.length - 1].value;
+                const previous = stock.history[stock.history.length - 2].value;
+                const change = Math.abs((recent - previous) / previous);
+                totalVolatility += change;
+                count++;
+            }
+        });
 
-    // Maximum 45 seconds - force news generation
-    if (timeSinceLastNews > 45000) return true;
+        if (count === 0) return 1;
 
-    // Base probability increases with time
-    const maxInterval = 45000;
-    const timeRange = maxInterval - minInterval;
-    const timePassed = timeSinceLastNews - minInterval;
-    let probability = Math.min(0.8, (timePassed / timeRange) * 0.8);
+        // Normalize to 0-2 range (1 = normal, 2 = very volatile)
+        const avgVolatility = totalVolatility / count;
+        return Math.min(2, 1 + avgVolatility * 20);
+    }
 
-    // Boost probability during high volatility (more news when market is active)
-    probability *= (1 + marketVolatility * 0.5);
+    /**
+     * Calculate user activity level (0-1)
+     */
+    export function calculateUserActivity(
+        recentTrades: number,
+        timeSinceLastTrade: number
+    ): number {
+        // Recent trades boost activity
+        const tradeScore = Math.min(1, recentTrades / 5);
 
-    // Boost probability when user is active (keep them engaged)
-    probability *= (1 + userActivity * 0.3);
+        // Time decay
+        const timeScore = Math.max(0, 1 - (timeSinceLastTrade / 60000)); // Decay over 1 minute
 
-    // Cap at 90%
-    probability = Math.min(0.9, probability);
+        return (tradeScore * 0.6 + timeScore * 0.4);
+    }
 
-    return Math.random() < probability;
-}
+    export function calculateNewsImpact(currentPrice: number, event: NewsEvent, symbol: string, sector: string): number {
+        let impactFactor = 0;
 
-/**
- * Calculate market volatility from stock price movements
- */
-export function calculateMarketVolatility(stocks: Stock[]): number {
-    if (stocks.length === 0) return 1;
-
-    let totalVolatility = 0;
-    let count = 0;
-
-    stocks.forEach(stock => {
-        if (stock.history.length >= 2) {
-            const recent = stock.history[stock.history.length - 1].value;
-            const previous = stock.history[stock.history.length - 2].value;
-            const change = Math.abs((recent - previous) / previous);
-            totalVolatility += change;
-            count++;
+        if (event.type === 'COMPANY' && event.symbol === symbol) {
+            // Direct company news - full impact
+            impactFactor = event.impact;
+        } else if (event.type === 'SECTOR' && event.sector === sector) {
+            // Sector news - reduced impact
+            impactFactor = event.impact;
+        } else if (event.type === 'MARKET' || event.type === 'ECONOMIC') {
+            // Market-wide - small impact
+            impactFactor = event.impact;
         }
-    });
 
-    if (count === 0) return 1;
-
-    // Normalize to 0-2 range (1 = normal, 2 = very volatile)
-    const avgVolatility = totalVolatility / count;
-    return Math.min(2, 1 + avgVolatility * 20);
-}
-
-/**
- * Calculate user activity level (0-1)
- */
-export function calculateUserActivity(
-    recentTrades: number,
-    timeSinceLastTrade: number
-): number {
-    // Recent trades boost activity
-    const tradeScore = Math.min(1, recentTrades / 5);
-
-    // Time decay
-    const timeScore = Math.max(0, 1 - (timeSinceLastTrade / 60000)); // Decay over 1 minute
-
-    return (tradeScore * 0.6 + timeScore * 0.4);
-}
-
-export function calculateNewsImpact(currentPrice: number, event: NewsEvent, symbol: string, sector: string): number {
-    let impactFactor = 0;
-
-    if (event.type === 'COMPANY' && event.symbol === symbol) {
-        // Direct company news - full impact
-        impactFactor = event.impact;
-    } else if (event.type === 'SECTOR' && event.sector === sector) {
-        // Sector news - reduced impact
-        impactFactor = event.impact;
-    } else if (event.type === 'MARKET' || event.type === 'ECONOMIC') {
-        // Market-wide - small impact
-        impactFactor = event.impact;
+        return currentPrice * (1 + impactFactor);
     }
-
-    return currentPrice * (1 + impactFactor);
-}

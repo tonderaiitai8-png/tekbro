@@ -179,6 +179,15 @@ export const useMarketEngine = () => {
                     newPrice = historicLow * 0.85; // Can't drop more than 15% below historic low in one move
                 }
 
+                // 9. ABSOLUTE PRICE BOUNDS (prevent runaway prices)
+                // Get base price from STOCK_CATALOG
+                const baseStock = STOCK_CATALOG.find(s => s.symbol === stock.symbol);
+                if (baseStock) {
+                    const maxPrice = baseStock.price * 5; // Max 5x base price
+                    const minPrice = baseStock.price * 0.2; // Min 20% of base price
+                    newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+                }
+
                 // Ensure positive price
                 newPrice = Math.max(1, newPrice);
 

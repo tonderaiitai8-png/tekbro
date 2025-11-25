@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { TrendingUp, TrendingDown, Clock, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { NewsEvent } from '../types';
 import { HapticPatterns } from '../utils/haptics';
@@ -12,6 +13,15 @@ interface NewsCardProps {
     onQuickTrade?: (action: 'BUY' | 'SELL') => void;
 }
 
+// Background images for different news types
+const NEWS_BACKGROUNDS = {
+    chart: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80', // Stock chart
+    tech: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80', // Tech/AI
+    phone: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80', // Phone/Android
+    market: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=800&q=80', // Bull market
+    finance: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800&q=80', // Finance
+};
+
 export const NewsCard: React.FC<NewsCardProps> = ({ news, onDismiss, onPress }) => {
     const getImpactColor = () => {
         if (news.impact > 0) return COLORS.positive;
@@ -19,12 +29,12 @@ export const NewsCard: React.FC<NewsCardProps> = ({ news, onDismiss, onPress }) 
         return COLORS.textSub;
     };
 
-    const getSeverityColor = () => {
-        switch (news.severity) {
-            case 'HIGH': return COLORS.warning;
-            case 'MEDIUM': return COLORS.accent;
-            case 'LOW': return COLORS.textSub;
-            default: return COLORS.accent;
+    const getSuggestionColor = (suggestion: string) => {
+        switch (suggestion) {
+            case 'BUY': return COLORS.positive;
+            case 'SELL': return COLORS.negative;
+            case 'HOLD': return COLORS.warning;
+            default: return COLORS.textSub;
         }
     };
 
@@ -37,101 +47,128 @@ export const NewsCard: React.FC<NewsCardProps> = ({ news, onDismiss, onPress }) 
         return `${hours}h ago`;
     };
 
+    // Select background based on news content
+    const getBackgroundImage = () => {
+        if (news.symbol === 'NVDA' || news.headline.includes('AI') || news.headline.includes('chip')) {
+            return NEWS_BACKGROUNDS.tech;
+        }
+        if (news.headline.includes('Android') || news.headline.includes('phone')) {
+            return NEWS_BACKGROUNDS.phone;
+        }
+        if (news.headline.includes('market') || news.headline.includes('S&P')) {
+            return NEWS_BACKGROUNDS.market;
+        }
+        if (news.headline.includes('Inflation') || news.type === 'ECONOMIC') {
+            return NEWS_BACKGROUNDS.chart;
+        }
+        return NEWS_BACKGROUNDS.finance;
+    };
+
     return (
-        <View style={styles.container}>
-            <TouchableOpacity
-                style={styles.card}
-                onPress={() => {
-                    HapticPatterns.light();
-                    onPress?.();
-                }}
-                activeOpacity={0.9}
+        <TouchableOpacity
+            style={styles.container}
+            onPress={() => {
+                HapticPatterns.light();
+                onPress?.();
+            }}
+            activeOpacity={0.9}
+        >
+            <ImageBackground
+                source={{ uri: getBackgroundImage() }}
+                style={styles.backgroundImage}
+                imageStyle={styles.backgroundImageStyle}
             >
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
-                        {news.symbol && (
-                            <View style={[styles.symbolBadge, { borderColor: getSeverityColor() }]}>
-                                <Text style={styles.symbolText}>{news.symbol}</Text>
+                <LinearGradient
+                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+                    style={styles.gradient}
+                >
+                    {/* Header Row */}
+                    <View style={styles.header}>
+                        <View style={styles.headerLeft}>
+                            {news.symbol && (
+                                <View style={styles.symbolBadge}>
+                                    <Text style={styles.symbolText}>{news.symbol}</Text>
+                                </View>
+                            )}
+                            <View style={styles.timeContainer}>
+                                <Clock size={12} color={COLORS.textMuted} />
+                                <Text style={styles.timeText}>{formatTimeAgo(news.timestamp)}</Text>
                             </View>
-                        )}
-                        <View style={styles.timeContainer}>
-                            <Clock size={12} color={COLORS.textMuted} />
-                            <Text style={styles.timeText}>{formatTimeAgo(news.timestamp)}</Text>
                         </View>
+
+                        <TouchableOpacity
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                HapticPatterns.light();
+                                onDismiss();
+                            }}
+                            style={styles.closeButton}
+                        >
+                            <X size={18} color={COLORS.text} />
+                        </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity
-                        onPress={() => {
-                            HapticPatterns.light();
-                            onDismiss();
-                        }}
-                        style={styles.closeButton}
-                    >
-                        <X size={18} color={COLORS.textMuted} />
-                    </TouchableOpacity>
-                </View>
+                    {/* Headline */}
+                    <Text style={styles.headline} numberOfLines={3}>
+                        {news.headline}
+                    </Text>
 
-                {/* Headline */}
-                <Text style={styles.headline} numberOfLines={3}>
-                    {news.headline}
-                </Text>
-
-                {/* Impact Indicator */}
-                <View style={styles.footer}>
-                    <View style={[styles.impactBadge, { backgroundColor: `${getImpactColor()}20` }]}>
-                        {news.impact > 0 ? (
-                            <TrendingUp size={16} color={getImpactColor()} strokeWidth={2.5} />
-                        ) : (
-                            <TrendingDown size={16} color={getImpactColor()} strokeWidth={2.5} />
-                        )}
-                        <Text style={[styles.impactText, { color: getImpactColor() }]}>
-                            {news.impact > 0 ? '+' : ''}{(news.impact * 100).toFixed(1)}%
-                        </Text>
-                    </View>
-
-                    {news.suggestion && (
-                        <View style={[styles.suggestionBadge, {
-                            backgroundColor: news.suggestion === 'BUY' ? `${COLORS.positive}20` :
-                                news.suggestion === 'SELL' ? `${COLORS.negative}20` :
-                                    `${COLORS.textSub}20`
-                        }]}>
-                            <Text style={[styles.suggestionText, {
-                                color: news.suggestion === 'BUY' ? COLORS.positive :
-                                    news.suggestion === 'SELL' ? COLORS.negative :
-                                        COLORS.textSub
-                            }]}>
-                                {news.suggestion}
+                    {/* Footer Row */}
+                    <View style={styles.footer}>
+                        <View style={[styles.impactBadge, { backgroundColor: `${getImpactColor()}30` }]}>
+                            {news.impact > 0 ? (
+                                <TrendingUp size={14} color={getImpactColor()} strokeWidth={2.5} />
+                            ) : (
+                                <TrendingDown size={14} color={getImpactColor()} strokeWidth={2.5} />
+                            )}
+                            <Text style={[styles.impactText, { color: getImpactColor() }]}>
+                                {news.impact > 0 ? '+' : ''}{(news.impact * 100).toFixed(1)}%
                             </Text>
                         </View>
-                    )}
-                </View>
-            </TouchableOpacity>
-        </View>
+
+                        {news.suggestion && (
+                            <View style={[styles.suggestionBadge, {
+                                backgroundColor: `${getSuggestionColor(news.suggestion)}30`,
+                                borderColor: getSuggestionColor(news.suggestion),
+                            }]}>
+                                <Text style={[styles.suggestionText, {
+                                    color: getSuggestionColor(news.suggestion)
+                                }]}>
+                                    {news.suggestion}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </LinearGradient>
+            </ImageBackground>
+        </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         marginBottom: SPACING.lg,
-    },
-    card: {
-        padding: SPACING.lg,
-        backgroundColor: COLORS.bgElevated,
+        marginHorizontal: SPACING.lg,
         borderRadius: RADIUS.xl,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 8,
+        overflow: 'hidden',
+        height: 160,
+    },
+    backgroundImage: {
+        width: '100%',
+        height: '100%',
+    },
+    backgroundImageStyle: {
+        borderRadius: RADIUS.xl,
+    },
+    gradient: {
+        flex: 1,
+        padding: SPACING.md,
+        justifyContent: 'space-between',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: SPACING.md,
     },
     headerLeft: {
         flexDirection: 'row',
@@ -140,12 +177,14 @@ const styles = StyleSheet.create({
     },
     symbolBadge: {
         paddingHorizontal: SPACING.sm,
-        paddingVertical: SPACING.xs,
+        paddingVertical: 4,
         borderRadius: RADIUS.sm,
-        borderWidth: 1.5,
+        backgroundColor: `${COLORS.accent}40`,
+        borderWidth: 1,
+        borderColor: COLORS.accent,
     },
     symbolText: {
-        fontSize: FONTS.sizes.xs,
+        fontSize: 11,
         fontFamily: FONTS.bold,
         color: COLORS.accent,
         letterSpacing: 0.5,
@@ -156,19 +195,21 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     timeText: {
-        fontSize: FONTS.sizes.xs,
+        fontSize: 11,
         fontFamily: FONTS.regular,
         color: COLORS.textMuted,
     },
     closeButton: {
-        padding: SPACING.xs,
+        padding: 4,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: RADIUS.sm,
     },
     headline: {
-        fontSize: FONTS.sizes.md,
+        fontSize: 16,
         fontFamily: FONTS.semibold,
         color: COLORS.text,
         lineHeight: 22,
-        marginBottom: SPACING.md,
+        flex: 1,
     },
     footer: {
         flexDirection: 'row',
@@ -180,20 +221,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 4,
         paddingHorizontal: SPACING.sm,
-        paddingVertical: SPACING.xs,
+        paddingVertical: 4,
         borderRadius: RADIUS.sm,
     },
     impactText: {
-        fontSize: FONTS.sizes.sm,
+        fontSize: 13,
         fontFamily: FONTS.bold,
     },
     suggestionBadge: {
         paddingHorizontal: SPACING.sm,
-        paddingVertical: SPACING.xs,
+        paddingVertical: 4,
         borderRadius: RADIUS.sm,
+        borderWidth: 1,
     },
     suggestionText: {
-        fontSize: FONTS.sizes.xs,
+        fontSize: 11,
         fontFamily: FONTS.bold,
         letterSpacing: 0.5,
     },

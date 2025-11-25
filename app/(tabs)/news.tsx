@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Header } from '../../components/Header';
+import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { NewsFeed } from '../../components/NewsFeed';
-import { COLORS } from '../../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { useStore } from '../../store/useStore';
 import { generateNewsEvent } from '../../utils/NewsEngine';
 import { NewsEvent } from '../../types';
@@ -15,6 +15,7 @@ const NEWS_BATCH_SIZE = 4; // Generate 4 news items per refresh
 export default function NewsScreen() {
     const { stocks } = useStore();
     const [newsHistory, setNewsHistory] = useState<NewsEvent[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const generateNewsBatch = useCallback(() => {
         const newNews: NewsEvent[] = [];
@@ -47,18 +48,43 @@ export default function NewsScreen() {
         setNewsHistory(prev => prev.filter(n => n.id !== newsId));
     }, []);
 
+    const filteredNews = newsHistory.filter(news =>
+        news.headline.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        news.symbol?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar style="light" />
 
-            <Header
-                title="News Feed"
-                rightComponent={null}
-            />
+            {/* Header */}
+            <View style={styles.header}>
+                <View style={styles.titleContainer}>
+                    <View style={styles.title}>News Feed</View>
+                </View>
+
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchBar}>
+                        <Search size={20} color={COLORS.textMuted} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search"
+                            placeholderTextColor={COLORS.textMuted}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>
+
+                    <TouchableOpacity style={styles.filterButton}>
+                        <SlidersHorizontal size={20} color={COLORS.text} />
+                    </TouchableOpacity>
+                </View>
+            </View>
 
             <View style={styles.content}>
                 <NewsFeed
-                    news={newsHistory}
+                    news={filteredNews}
                     onDismissNews={handleDismissNews}
                     refreshing={false}
                 />
@@ -71,6 +97,46 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
+    },
+    header: {
+        paddingHorizontal: SPACING.lg,
+        paddingBottom: SPACING.md,
+    },
+    titleContainer: {
+        marginBottom: SPACING.lg,
+    },
+    title: {
+        fontSize: 32,
+        fontFamily: FONTS.bold,
+        color: COLORS.text,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        gap: SPACING.sm,
+    },
+    searchBar: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.bgElevated,
+        borderRadius: RADIUS.lg,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+        gap: SPACING.sm,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: FONTS.sizes.md,
+        fontFamily: FONTS.regular,
+        color: COLORS.text,
+    },
+    filterButton: {
+        width: 48,
+        height: 48,
+        backgroundColor: COLORS.bgElevated,
+        borderRadius: RADIUS.lg,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     content: {
         flex: 1,

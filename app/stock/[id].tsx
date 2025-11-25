@@ -14,7 +14,8 @@ export default function StockDetailScreen() {
     const router = useRouter();
     const { stocks, cash, holdings, buyStock, sellStock, watchlist, toggleWatchlist } = useStore();
 
-    const stock = stocks.find(s => s.id === id);
+    // id parameter is actually the symbol from the router
+    const stock = stocks.find(s => s.symbol === id);
     const [showModal, setShowModal] = useState(false);
     const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
     const [quantity, setQuantity] = useState('');

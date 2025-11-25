@@ -1,139 +1,176 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Svg, Circle } from 'react-native-svg';
+import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
-interface Props {
+interface StatsHeaderProps {
     xp: number;
     level: number;
     loginStreak: number;
 }
 
-export function StatsHeader({ xp, level, loginStreak }: Props) {
-    const nextLevelXp = useMemo(() => level * 1000, [level]);
-    const progress = useMemo(() => (xp / nextLevelXp) * 100, [xp, nextLevelXp]);
+export const StatsHeader: React.FC<StatsHeaderProps> = ({ xp, level, loginStreak }) => {
+    // Calculate XP for current level
+    const xpForCurrentLevel = level * 1000;
+    const xpForNextLevel = (level + 1) * 1000;
+    const xpProgress = xp - xpForCurrentLevel;
+    const xpNeeded = xpForNextLevel - xpForCurrentLevel;
+    const progressPercent = (xpProgress / xpNeeded) * 100;
+
+    // Circle progress calculation
+    const radius = 32;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
 
     return (
         <View style={styles.container}>
-            {/* Level Badge */}
-            <View style={styles.levelBadge}>
-                <Text style={styles.levelLabel}>LVL</Text>
-                <Text style={styles.levelValue}>{level}</Text>
-            </View>
-
-            {/* XP Progress */}
-            <View style={styles.xpContainer}>
-                <View style={styles.xpHeader}>
-                    <Text style={styles.xpLabel}>EXPERIENCE</Text>
-                    <Text style={styles.xpText}>
-                        {xp.toLocaleString()} / {nextLevelXp.toLocaleString()}
-                    </Text>
-                </View>
-                <View style={styles.xpBarContainer}>
-                    <View style={styles.xpBarBg}>
-                        <View style={[styles.xpBarFill, { width: `${Math.min(100, progress)}%` }]} />
+            <LinearGradient
+                colors={['#1A2F3F', '#0D1F2D']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.card}
+            >
+                {/* Left: Circular Level Indicator */}
+                <View style={styles.levelContainer}>
+                    <Svg width="80" height="80">
+                        {/* Background Circle */}
+                        <Circle
+                            cx="40"
+                            cy="40"
+                            r={radius}
+                            stroke="rgba(255,255,255,0.1)"
+                            strokeWidth="6"
+                            fill="none"
+                        />
+                        {/* Progress Circle */}
+                        <Circle
+                            cx="40"
+                            cy="40"
+                            r={radius}
+                            stroke={COLORS.accent}
+                            strokeWidth="6"
+                            fill="none"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                            rotation="-90"
+                            origin="40, 40"
+                        />
+                    </Svg>
+                    <View style={styles.levelBadge}>
+                        <Text style={styles.levelLabel}>LVL</Text>
+                        <Text style={styles.levelNumber}>{level}</Text>
                     </View>
                 </View>
-            </View>
 
-            {/* Streak Badge */}
-            {loginStreak > 0 && (
-                <View style={styles.streakBadge}>
-                    <Text style={styles.streakIcon}>🔥</Text>
-                    <Text style={styles.streakValue}>{loginStreak}</Text>
+                {/* Middle: XP Progress */}
+                <View style={styles.progressContainer}>
+                    <Text style={styles.experienceLabel}>EXPERIENCE</Text>
+                    <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${Math.min(progressPercent, 100)}%` }]} />
+                    </View>
+                    <Text style={styles.xpText}>
+                        {xp.toLocaleString()} / {xpForNextLevel.toLocaleString()}
+                    </Text>
                 </View>
-            )}
+
+                {/* Right: Streak */}
+                <View style={styles.streakContainer}>
+                    <Text style={styles.streakLabel}>Streak</Text>
+                    <View style={styles.streakBadge}>
+                        <Text style={styles.streakEmoji}>🔥</Text>
+                        <Text style={styles.streakNumber}>{loginStreak}</Text>
+                    </View>
+                </View>
+            </LinearGradient>
         </View>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
+        marginBottom: SPACING.lg,
+    },
+    card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.card,
         padding: SPACING.lg,
-        marginBottom: SPACING.xl,
-        borderRadius: 12,
+        borderRadius: RADIUS.xl,
         borderWidth: 1,
-        borderColor: COLORS.borderLight,
-        gap: SPACING.lg,
+        borderColor: COLORS.border,
+    },
+    levelContainer: {
+        position: 'relative',
+        marginRight: SPACING.lg,
     },
     levelBadge: {
-        width: 56,
-        height: 56,
-        borderRadius: 12,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         justifyContent: 'center',
-        gap: 2,
+        alignItems: 'center',
     },
     levelLabel: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: COLORS.background,
-        fontFamily: FONTS.bold,
+        fontSize: 10,
+        fontFamily: FONTS.medium,
+        color: COLORS.textSub,
         letterSpacing: 0.5,
     },
-    levelValue: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: COLORS.background,
+    levelNumber: {
+        fontSize: 24,
         fontFamily: FONTS.bold,
+        color: COLORS.accent,
     },
-    xpContainer: {
+    progressContainer: {
         flex: 1,
-        gap: SPACING.sm,
+        marginRight: SPACING.lg,
     },
-    xpHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    xpLabel: {
+    experienceLabel: {
         fontSize: 10,
-        fontWeight: '700',
-        color: COLORS.textTertiary,
-        fontFamily: FONTS.bold,
-        letterSpacing: 1,
+        fontFamily: FONTS.medium,
+        color: COLORS.textSub,
+        letterSpacing: 0.5,
+        marginBottom: SPACING.xs,
+    },
+    progressBar: {
+        height: 8,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: RADIUS.full,
+        overflow: 'hidden',
+        marginBottom: SPACING.xs,
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: COLORS.accent,
+        borderRadius: RADIUS.full,
     },
     xpText: {
         fontSize: 12,
-        fontWeight: '600',
-        color: COLORS.textSecondary,
-        fontFamily: FONTS.semibold,
+        fontFamily: FONTS.medium,
+        color: COLORS.text,
     },
-    xpBarContainer: {
-        height: 6,
+    streakContainer: {
+        alignItems: 'center',
     },
-    xpBarBg: {
-        height: '100%',
-        backgroundColor: COLORS.borderLight,
-        borderRadius: 3,
-        overflow: 'hidden',
-    },
-    xpBarFill: {
-        height: '100%',
-        backgroundColor: COLORS.primary,
-        borderRadius: 3,
+    streakLabel: {
+        fontSize: 10,
+        fontFamily: FONTS.medium,
+        color: COLORS.textSub,
+        marginBottom: SPACING.xs,
     },
     streakBadge: {
-        flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.warningDim,
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
-        borderRadius: 8,
-        gap: 6,
-        borderWidth: 1,
-        borderColor: COLORS.warning + '40',
     },
-    streakIcon: {
+    streakEmoji: {
+        fontSize: 24,
+        marginBottom: 2,
+    },
+    streakNumber: {
         fontSize: 18,
-    },
-    streakValue: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.warning,
         fontFamily: FONTS.bold,
+        color: COLORS.warning,
     },
 });
