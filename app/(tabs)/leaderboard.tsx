@@ -94,7 +94,7 @@ export default function LeaderboardScreen() {
     const renderItem = ({ item }: { item: LeaderboardEntry }) => {
         const isTop3 = item.rank && item.rank <= 3;
         const gradient = getRankGradient(item.rank || 0);
-        const emoji = getRankEmoji(item. || 0);
+        const emoji = getRankEmoji(item.rank || 0);
 
         return (
             <LinearGradient
@@ -106,12 +106,12 @@ export default function LeaderboardScreen() {
                 {/* Rank Badge */}
                 <View style={styles.rankBadge}>
                     <Text style={styles.rankEmoji}>{emoji}</Text>
-                    <Text style={[styles.rankNumber, isTop3 && styles.rankNumberTop3]}>#{item.rank}</Text>
+                    <Text style={[styles.rankNumber, isTop3 ? styles.rankNumberTop3 : undefined]}>#{item.rank}</Text>
                 </View>
 
                 {/* User Info */}
                 <View style={styles.userInfo}>
-                    <Text style={[styles.username, isTop3 && styles.usernameTop3]} numberOfLines={1}>
+                    <Text style={[styles.username, isTop3 ? styles.usernameTop3 : undefined]} numberOfLines={1}>
                         {item.username} {item.isUser && '(You)'}
                     </Text>
                     <View style={styles.statsRow}>
@@ -123,7 +123,7 @@ export default function LeaderboardScreen() {
 
                 {/* Equity */}
                 <View style={styles.equitySection}>
-                    <Text style={[styles.equity, isTop3 && styles.equityTop3]}>
+                    <Text style={[styles.equity, isTop3 ? styles.equityTop3 : undefined]}>
                         £{item.equity.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
                     </Text>
                 </View>
