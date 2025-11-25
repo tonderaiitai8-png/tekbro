@@ -1,5 +1,5 @@
-import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { memo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Zap, Star } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +25,9 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     const { watchlist, toggleWatchlist, buyStock, cash } = useStore();
     const isWatchlisted = watchlist.includes(stock.symbol);
 
+    // Animation for press effect
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
     // Calculate price change
     const priceChange = stock.history.length >= 2
         ? stock.price - stock.history[stock.history.length - 2].value
@@ -34,6 +37,24 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
         : 0;
 
     const isPositive = priceChange >= 0;
+
+    const handlePressIn = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 0.97,
+            tension: 400,
+            friction: 15,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 1,
+            tension: 400,
+            friction: 15,
+            useNativeDriver: true,
+        }).start();
+    };
 
     const handleQuickBuy = (e: any) => {
         e.stopPropagation();
@@ -60,83 +81,86 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     };
 
     return (
-        <TouchableOpacity
-            style={styles.container}
-            onPress={() => router.push(`/stock/${stock.symbol}`)}
-            activeOpacity={0.8}
-        >
-            <LinearGradient
-                colors={getGradientColors()}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.card}
+        <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
+            <TouchableOpacity
+                onPress={() => router.push(`/stock/${stock.symbol}`)}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                activeOpacity={1}
             >
-                {/* Company Icon */}
-                <View style={styles.iconContainer}>
-                    <View style={styles.icon}>
-                        <Text style={styles.iconText}>{COMPANY_ICONS[stock.symbol] || '📈'}</Text>
+                <LinearGradient
+                    colors={getGradientColors()}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.card}
+                >
+                    {/* Company Icon */}
+                    <View style={styles.iconContainer}>
+                        <View style={styles.icon}>
+                            <Text style={styles.iconText}>{COMPANY_ICONS[stock.symbol] || '📈'}</Text>
+                        </View>
                     </View>
-                </View>
 
-                {/* Stock Info */}
-                <View style={styles.infoContainer}>
-                    <View style={styles.topRow}>
-                        <View style={styles.symbolContainer}>
-                            <Text style={styles.symbol}>{stock.symbol}</Text>
+                    {/* Stock Info */}
+                    <View style={styles.infoContainer}>
+                        <View style={styles.topRow}>
+                            <View style={styles.symbolContainer}>
+                                <Text style={styles.symbol}>{stock.symbol}</Text>
+                                <TouchableOpacity
+                                    onPress={handleToggleWatchlist}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Star
+                                        size={16}
+                                        color={isWatchlisted ? COLORS.accent : COLORS.textMuted}
+                                        fill={isWatchlisted ? COLORS.accent : 'transparent'}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.priceContainer}>
+                                <Text style={styles.price}>
+                                    £{stock.price.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    })}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.bottomRow}>
+                            <View style={styles.changeContainer}>
+                                {isPositive ? (
+                                    <TrendingUp size={14} color={COLORS.positive} />
+                                ) : (
+                                    <TrendingDown size={14} color={COLORS.negative} />
+                                )}
+                                <Text style={[
+                                    styles.changeText,
+                                    isPositive ? styles.positiveText : styles.negativeText
+                                ]}>
+                                    {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                                </Text>
+                            </View>
+
                             <TouchableOpacity
-                                onPress={handleToggleWatchlist}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                style={styles.quickBuyButton}
+                                onPress={handleQuickBuy}
+                                activeOpacity={0.7}
                             >
-                                <Star
-                                    size={16}
-                                    color={isWatchlisted ? COLORS.accent : COLORS.textMuted}
-                                    fill={isWatchlisted ? COLORS.accent : 'transparent'}
-                                />
+                                <Zap size={12} color={cash >= stock.price ? '#000' : COLORS.textMuted} />
+                                <Text style={[
+                                    styles.quickBuyText,
+                                    cash < stock.price && styles.disabledText
+                                ]}>
+                                    Buy
+                                </Text>
                             </TouchableOpacity>
                         </View>
-
-                        <View style={styles.priceContainer}>
-                            <Text style={styles.price}>
-                                £{stock.price.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                })}
-                            </Text>
-                        </View>
                     </View>
-
-                    <View style={styles.bottomRow}>
-                        <View style={styles.changeContainer}>
-                            {isPositive ? (
-                                <TrendingUp size={14} color={COLORS.positive} />
-                            ) : (
-                                <TrendingDown size={14} color={COLORS.negative} />
-                            )}
-                            <Text style={[
-                                styles.changeText,
-                                isPositive ? styles.positiveText : styles.negativeText
-                            ]}>
-                                {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
-                            </Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.quickBuyButton}
-                            onPress={handleQuickBuy}
-                            activeOpacity={0.7}
-                        >
-                            <Zap size={12} color={cash >= stock.price ? '#000' : COLORS.textMuted} />
-                            <Text style={[
-                                styles.quickBuyText,
-                                cash < stock.price && styles.disabledText
-                            ]}>
-                                Buy
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </LinearGradient>
-        </TouchableOpacity>
+                </LinearGradient>
+            </TouchableOpacity>
+        </Animated.View>
     );
 };
 
