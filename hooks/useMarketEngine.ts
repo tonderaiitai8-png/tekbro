@@ -81,7 +81,7 @@ export const useMarketEngine = () => {
                     });
                 }
             }
-        }, 10000); // Check every 10 seconds
+        }, 60000); // Check every 60 seconds (1 minute)
 
         return () => clearInterval(newsInterval);
     }, [stocks, lastNewsTime]);

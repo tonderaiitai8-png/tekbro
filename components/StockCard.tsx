@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Zap, Star } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Svg, Polyline } from 'react-native-svg';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Stock } from '../types';
 import { useStore } from '../store/useStore';
@@ -13,28 +12,12 @@ interface StockCardProps {
     stock: Stock;
 }
 
-// Company icons mapping (using emojis for now - can be replaced with actual icons)
+// Company icons mapping
 const COMPANY_ICONS: Record<string, string> = {
-    'AAPL': '🍎',
-    'NVDA': '🎮',
-    'TSLA': '🚗',
-    'MSFT': '💻',
-    'GOOGL': '🔍',
-    'AMZN': '📦',
-    'META': '👥',
-    'NFLX': '🎬',
-    'PLTR': '🛡️',
-    'COIN': '🪙',
-    'ABNB': '🏠',
-    'UBER': '🚕',
-    'SHOP': '🛍️',
-    'SQ': '💳',
-    'RBLX': '🎮',
-    'SNAP': '👻',
-    'SPOT': '🎵',
-    'TWTR': '🐦',
-    'ZM': '📹',
-    'DOCU': '📝',
+    'AAPL': '🍎', 'NVDA': '🎮', 'TSLA': '🚗', 'MSFT': '💻', 'GOOGL': '🔍',
+    'AMZN': '📦', 'META': '👥', 'NFLX': '🎬', 'PLTR': '🛡️', 'COIN': '🪙',
+    'ABNB': '🏠', 'UBER': '🚕', 'SHOP': '🛍️', 'SQ': '💳', 'RBLX': '🎮',
+    'SNAP': '👻', 'SPOT': '🎵', 'TWTR': '🐦', 'ZM': '📹', 'DOCU': '📝',
 };
 
 export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
@@ -52,46 +35,6 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
 
     const isPositive = priceChange >= 0;
 
-    // Generate mini chart points - FIX NaN issue
-    const generateChartPoints = () => {
-        if (!stock.history || stock.history.length < 2) {
-            // Not enough data, return flat line
-            return '0,50 100,50';
-        }
-
-        const recentHistory = stock.history.slice(-20);
-        if (recentHistory.length < 2) {
-            return '0,50 100,50';
-        }
-
-        const values = recentHistory.map(p => p.value);
-        const minValue = Math.min(...values);
-        const maxValue = Math.max(...values);
-        const range = maxValue - minValue;
-
-        // Prevent division by zero
-        if (range === 0 || isNaN(range)) {
-            return '0,50 100,50';
-        }
-
-        const points = recentHistory.map((point, index) => {
-            const x = (index / (recentHistory.length - 1)) * 100;
-            const normalizedY = ((point.value - minValue) / range);
-            const y = 100 - (normalizedY * 100); // Invert Y axis
-
-            // Validate numbers
-            if (isNaN(x) || isNaN(y)) {
-                return null;
-            }
-
-            return `${x.toFixed(2)},${y.toFixed(2)}`;
-        }).filter(p => p !== null);
-
-        return points.length > 0 ? points.join(' ') : '0,50 100,50';
-    };
-
-    const polylinePoints = generateChartPoints();
-
     const handleQuickBuy = (e: any) => {
         e.stopPropagation();
         if (cash >= stock.price) {
@@ -108,12 +51,11 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
         HapticPatterns.light();
     };
 
-    // Get gradient colors based on stock performance
     const getGradientColors = (): [string, string] => {
         if (isPositive) {
-            return ['#0D4D4D', '#1A5F5F']; // Teal gradient for positive
+            return ['#0D4D4D', '#1A5F5F'];
         } else {
-            return ['#4D1A1A', '#5F2626']; // Red gradient for negative
+            return ['#4D1A1A', '#5F2626'];
         }
     };
 
@@ -129,32 +71,23 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
                 end={{ x: 1, y: 1 }}
                 style={styles.card}
             >
-                {/* Left: Company Icon */}
+                {/* Company Icon */}
                 <View style={styles.iconContainer}>
                     <View style={styles.icon}>
                         <Text style={styles.iconText}>{COMPANY_ICONS[stock.symbol] || '📈'}</Text>
                     </View>
                 </View>
 
-                {/* Middle: Symbol, Name, and Chart */}
+                {/* Symbol, Name, Trend */}
                 <View style={styles.middleSection}>
                     <Text style={styles.symbol}>{stock.symbol}</Text>
                     <Text style={styles.name} numberOfLines={1}>{stock.name}</Text>
-
-                    {/* Mini Chart */}
-                    <View style={styles.chartContainer}>
-                        <Svg height="30" width="100" style={styles.chart}>
-                            <Polyline
-                                points={polylinePoints}
-                                fill="none"
-                                stroke={isPositive ? COLORS.positive : COLORS.negative}
-                                strokeWidth="2"
-                            />
-                        </Svg>
-                    </View>
+                    <Text style={[styles.trendText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
+                        {isPositive ? '↗' : '↘'} Trending {isPositive ? 'Up' : 'Down'}
+                    </Text>
                 </View>
 
-                {/* Right: Price and Actions */}
+                {/* Price and Actions */}
                 <View style={styles.rightSection}>
                     <Text style={styles.price}>£{stock.price.toFixed(2)}</Text>
                     <View style={styles.changeContainer}>
@@ -168,18 +101,11 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
                         </Text>
                     </View>
 
-                    {/* Action Icons */}
                     <View style={styles.actions}>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={handleQuickBuy}
-                        >
+                        <TouchableOpacity style={styles.actionButton} onPress={handleQuickBuy}>
                             <Zap size={18} color={COLORS.accent} fill={COLORS.accent} />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={handleToggleWatchlist}
-                        >
+                        <TouchableOpacity style={styles.actionButton} onPress={handleToggleWatchlist}>
                             <Star
                                 size={18}
                                 color={isWatchlisted ? COLORS.warning : COLORS.textMuted}
@@ -235,12 +161,9 @@ const styles = StyleSheet.create({
         color: COLORS.textSub,
         marginBottom: SPACING.xs,
     },
-    chartContainer: {
-        height: 30,
-        width: 100,
-    },
-    chart: {
-        opacity: 0.7,
+    trendText: {
+        fontSize: FONTS.sizes.xs,
+        fontFamily: FONTS.medium,
     },
     rightSection: {
         alignItems: 'flex-end',
