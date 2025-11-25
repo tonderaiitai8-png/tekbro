@@ -10,11 +10,13 @@ export interface Stock {
     name: string;
     price: number;
     history: PricePoint[];
-    sector: 'Tech' | 'Finance' | 'Healthcare' | 'Consumer' | 'Energy' | 'Crypto' | 'Entertainment' | 'Index';
+    sector: 'Tech' | 'Finance' | 'Healthcare' | 'Consumer' | 'Energy' | 'Real Estate' | 'Crypto';
     marketCap: number;
-    volatility: number; // 1-10 scale, affects price movement
+    volatility: number; // 0.01-0.10 scale (1%-10% daily volatility)
     description: string;
+    icon?: string; // Emoji icon
 }
+
 
 export interface PortfolioItem {
     symbol: string;
