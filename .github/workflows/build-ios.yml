@@ -23,7 +23,7 @@ jobs:
           npm install -g eas-cli expo-cli
 
       - name: Prebuild Expo
-        run: npx expo prebuild --platform ios --no-interactive --clean
+        run: npx expo prebuild --platform ios --clean
 
       - name: Install CocoaPods
         run: |
