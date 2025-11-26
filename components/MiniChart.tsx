@@ -10,19 +10,22 @@ interface MiniChartProps {
     height?: number;
 }
 
-export const MiniChart: React.FC<MiniChartProps> = ({
+export const MiniChart: React.FC<MiniChartProps> = React.memo(({
     data,
     color = COLORS.accent,
     width = 80,
     height = 40,
 }) => {
-    if (!data || data.length < 2) {
+    const chartData = React.useMemo(() => {
+        if (!data || data.length < 2) return [];
+        return data.slice(-10).map(point => ({
+            value: point.value,
+        }));
+    }, [data]);
+
+    if (chartData.length === 0) {
         return <View style={[styles.container, { width, height }]} />;
     }
-
-    const chartData = data.slice(-20).map(point => ({
-        value: point.value,
-    }));
 
     return (
         <View style={[styles.container, { width, height }]}>
@@ -48,7 +51,7 @@ export const MiniChart: React.FC<MiniChartProps> = ({
             />
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

@@ -6,12 +6,13 @@ import Animated, {
     interpolateColor,
     Extrapolate,
     withSpring,
+    SharedValue
 } from 'react-native-reanimated';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
 interface AnimatedDotsProps {
     data: any[];
-    scrollX: Animated.SharedValue<number>;
+    scrollX: SharedValue<number>;
     dotSize?: number;
     activeDotWidth?: number;
     spacing?: number;

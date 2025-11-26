@@ -16,7 +16,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 }) => {
     return (
         <LinearGradient
-            colors={gradient}
+            colors={gradient as any}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.glassCard, style]}

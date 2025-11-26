@@ -1,227 +1,190 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useStore } from '../store/useStore';
 import { initializeStocks, STOCK_CATALOG } from '../constants/stockData';
-import { generateNewsEvent, shouldGenerateNews } from '../utils/NewsEngine';
+import { generateNewsEvent } from '../utils/NewsEngine';
 
 /**
- * WORLD-CLASS MARKET ENGINE
+ * 🎲 THE GUMPTION ENGINE (Market V3)
  * 
- * Features:
- * - Realistic volatility-based price movements
- * - Sector correlation (related stocks move together)
- * - Market sentiment (bull/bear market cycles)
- * - Mean reversion (prices return to moving average)
- * - Momentum (trending stocks continue trending)
- * - News-driven events (One-time impact)
- * - Support/resistance levels
- * - Circuit breakers (limit extreme moves)
+ * Philosophy: "Organic Chaos"
+ * - No scripted "Rally Modes".
+ * - Stocks follow a Random Walk with Drift.
+ * - "Fat Tails": Uses Gaussian (Normal) distribution for RNG. Most moves are small, but rare events are HUGE.
+ * - Drift: Each stock has a hidden "trend" that evolves slowly.
+ * - News: News events "kick" the drift, changing the future path.
  */
+
+// Box-Muller Transform: Generates numbers with a Normal Distribution (Bell Curve)
+// Mean = 0, Variance = 1
+// Returns values mostly between -2 and 2, but can go higher (The "Fat Tail")
+const boxMullerRandom = () => {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+};
 
 export const useMarketEngine = () => {
     const {
-        stocks,
         setStocks,
-        updateStockPrice,
-        activeNews,
+        updateMarketPrices,
         setActiveNews,
-        marketSentiment,
-        setMarketSentiment
     } = useStore();
 
-    const [lastNewsTime, setLastNewsTime] = useState(Date.now());
-    const [sectorMomentum, setSectorMomentum] = useState<Record<string, number>>({});
+    const lastNewsTimeRef = useRef(Date.now());
 
-    // Initialize stocks
+    // 🌊 DRIFT SYSTEM: The hidden "Current" of the stock
+    // Positive = Bullish trend, Negative = Bearish trend
+    // This value itself "walks" randomly over time.
+    const driftRef = useRef<Record<string, number>>({});
+
+    // Initialize stocks and drift
     useEffect(() => {
-        const needsReset = stocks.length !== STOCK_CATALOG.length ||
-            stocks.some(s => !s || !s.price || s.price < 1 || !s.history || s.history.length === 0 || !s.sector || typeof s.marketCap !== 'number');
+        const currentStocks = useStore.getState().stocks;
+        const needsReset = currentStocks.length !== STOCK_CATALOG.length ||
+            currentStocks.some(s => !s || !s.price || s.price < 1 || !s.history || s.history.length === 0);
 
         if (needsReset) {
             const initializedStocks = initializeStocks();
             setStocks(initializedStocks);
+
+            // Initialize random drift
+            initializedStocks.forEach(stock => {
+                driftRef.current[stock.symbol] = (Math.random() - 0.5) * 0.002;
+            });
+        } else {
+            // Hydrate drift for existing stocks if missing
+            currentStocks.forEach(stock => {
+                if (driftRef.current[stock.symbol] === undefined) {
+                    driftRef.current[stock.symbol] = (Math.random() - 0.5) * 0.002;
+                }
+            });
         }
     }, []);
 
-    // News generation system with cooldown
-    const [newsCooldown, setNewsCooldown] = useState(false);
-
+    // ⚡ THE GAME LOOP (1s Updates - Faster for organic feel)
     useEffect(() => {
-        if (stocks.length === 0) return;
-
-        const newsInterval = setInterval(() => {
-            // Check cooldown first
-            if (newsCooldown) {
-                console.log('📰 News on cooldown, skipping...');
-                return;
-            }
-
-            if (shouldGenerateNews(lastNewsTime)) {
-                console.log('📰 Generating News Event...');
-                const news = generateNewsEvent(stocks);
-                if (news) {
-                    console.log('📰 News Generated:', news.headline);
-                    setActiveNews(news);
-                    setLastNewsTime(Date.now());
-                    setNewsCooldown(true);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-
-                    // Auto-dismiss after 15 seconds
-                    setTimeout(() => {
-                        setActiveNews(null);
-                    }, 15000);
-
-                    // Reset cooldown after 30 seconds  
-                    setTimeout(() => {
-                        setNewsCooldown(false);
-                    }, 30000);
-
-                    // APPLY NEWS IMPACT IMMEDIATELY (ONE-TIME)
-                    // This prevents compounding gains/losses every tick
-                    stocks.forEach(stock => {
-                        let shouldApply = false;
-                        let impactFactor = 0;
-
-                        if (news.type === 'COMPANY' && news.symbol === stock.symbol) {
-                            shouldApply = true;
-                            impactFactor = news.impact;
-                        } else if (news.type === 'SECTOR' && news.sector === stock.sector) {
-                            shouldApply = true;
-                            impactFactor = news.impact * 0.5; // Sector news has 50% impact
-                        } else if (news.type === 'MARKET' || news.type === 'ECONOMIC') {
-                            shouldApply = true;
-                            impactFactor = news.impact * 0.25; // Market news has 25% impact
-                        }
-
-                        if (shouldApply) {
-                            const newPrice = stock.price * (1 + impactFactor);
-                            updateStockPrice(stock.symbol, newPrice);
-                        }
-                    });
-                }
-            }
-        }, 30000); // Check every 30 seconds (for testing - change to 300000 for production)
-
-        return () => clearInterval(newsInterval);
-    }, [stocks, lastNewsTime, newsCooldown]);
-
-    // World-class price update system (every 3 seconds)
-    useEffect(() => {
-        if (stocks.length === 0) return;
-
         const interval = setInterval(() => {
-            // Update market sentiment gradually (random walk)
-            const newSentiment = Math.max(-0.3, Math.min(0.4, marketSentiment + (Math.random() - 0.5) * 0.05));
-            setMarketSentiment(newSentiment);
+            const currentStocks = useStore.getState().stocks;
+            if (currentStocks.length === 0) return;
 
-            // Calculate sector momentum
-            const newSectorMomentum: Record<string, number> = {};
-            const sectorPriceChanges: Record<string, number[]> = {};
+            const priceUpdates: Record<string, number> = {};
 
-            stocks.forEach(stock => {
-                if (!sectorPriceChanges[stock.sector]) {
-                    sectorPriceChanges[stock.sector] = [];
-                }
-                if (stock.history.length >= 2) {
-                    const recentChange = (stock.price - stock.history[stock.history.length - 2].value) / stock.history[stock.history.length - 2].value;
-                    sectorPriceChanges[stock.sector].push(recentChange);
-                }
-            });
+            currentStocks.forEach(stock => {
+                if (!stock || !stock.price) return;
 
-            Object.keys(sectorPriceChanges).forEach(sector => {
-                const avg = sectorPriceChanges[sector].reduce((a, b) => a + b, 0) / sectorPriceChanges[sector].length;
-                newSectorMomentum[sector] = avg * 0.7; // 70% correlation
-            });
-            setSectorMomentum(newSectorMomentum);
+                // 1. Evolve the Drift (The Trend)
+                // The drift itself takes a random walk, making trends persist but eventually turn
+                const driftChange = (Math.random() - 0.5) * 0.0005;
+                let currentDrift = (driftRef.current[stock.symbol] || 0) + driftChange;
 
-            // Update each stock with professional algorithms
-            stocks.forEach(stock => {
-                if (!stock || !stock.price || stock.price < 1) return;
+                // Mean Reversion for Drift: Pull it slightly back to 0 so it doesn't explode
+                currentDrift *= 0.99;
+                driftRef.current[stock.symbol] = currentDrift;
 
-                let newPrice = stock.price;
-
-                // 1. BASE VOLATILITY MOVEMENT
-                const vol = stock.volatility;
-                let baseMaxChange: number;
-
-                if (vol <= 3) {
-                    baseMaxChange = 0.005 + (vol / 3) * 0.008; // 0.5% - 1.3%
-                } else if (vol <= 7) {
-                    baseMaxChange = 0.013 + ((vol - 4) / 3) * 0.017; // 1.3% - 3.0%
-                } else {
-                    const isBigMove = Math.random() < 0.08;
-                    baseMaxChange = isBigMove
-                        ? 0.06 + Math.random() * 0.09 // 6% - 15% (rare)
-                        : 0.03 + ((vol - 8) / 2) * 0.03; // 3% - 6%
-                }
-
-                // 2. MARKET SENTIMENT INFLUENCE
-                const sentimentInfluence = marketSentiment * 0.4; // Market sent sentiment contributes up to 40%
-
-                // 3. SECTOR CORRELATION
-                const sectorInfluence = (sectorMomentum[stock.sector] || 0) * 0.5; // 50% sector correlation
-
-                // 4. MEAN REVERSION (prices gravitate toward 10-period moving average)
-                const ma10 = stock.history.slice(-10).reduce((sum, h) => sum + h.value, 0) / Math.min(10, stock.history.length);
-                const distanceFromMA = (stock.price - ma10) / ma10;
-                const meanReversionForce = -distanceFromMA * 0.15; // Pull back 15% of distance
-
-                // 5. MOMENTUM (trending stocks continue trending)
-                let momentum = 0;
-                if (stock.history.length >= 5) {
-                    const recent5 = stock.history.slice(-5);
-                    const priceChanges = recent5.map((h, i) => i > 0 ? (h.value - recent5[i - 1].value) / recent5[i - 1].value : 0);
-                    const avgMomentum = priceChanges.reduce((a, b) => a + b, 0) / priceChanges.length;
-                    momentum = avgMomentum * 0.3; // 30% momentum continuation
-                }
-
-                // COMBINE ALL FACTORS
-                const baseChange = (Math.random() - 0.5) * baseMaxChange;
-                const totalChange = baseChange + sentimentInfluence + sectorInfluence + meanReversionForce + momentum;
-
-                // Apply change
-                newPrice = stock.price * (1 + totalChange);
-
-                // 7. CIRCUIT BREAKERS (limit extreme moves)
-                const maxSingleMove = 0.12; // Maximum 12% move per update
-                const minSingleMove = -0.12;
-                const actualChange = (newPrice - stock.price) / stock.price;
-                if (actualChange > maxSingleMove) {
-                    newPrice = stock.price * (1 + maxSingleMove);
-                } else if (actualChange < minSingleMove) {
-                    newPrice = stock.price * (1 + minSingleMove);
-                }
-
-                // 8. SUPPORT LEVELS (soft floor prevents crashes)
-                const historicLow = Math.min(...stock.history.map(h => h.value));
-                if (newPrice < historicLow * 0.85) {
-                    newPrice = historicLow * 0.85; // Can't drop more than 15% below historic low in one move
-                }
-
-                // 9. ABSOLUTE PRICE BOUNDS (prevent runaway prices)
-                // Get base price from STOCK_CATALOG
+                // 2. Calculate Volatility Component (The Noise)
+                // Use Box-Muller for "Fat Tail" risks
                 const baseStock = STOCK_CATALOG.find(s => s.symbol === stock.symbol);
-                if (baseStock) {
-                    const maxPrice = baseStock.price * 5; // Max 5x base price
-                    const minPrice = baseStock.price * 0.2; // Min 20% of base price
-                    newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
-                }
+                const volatility = (baseStock?.volatility || 1.0) * 0.008; // Base volatility scaling
+                const noise = boxMullerRandom() * volatility;
 
-                // Ensure positive price
-                newPrice = Math.max(1, newPrice);
+                // 3. Calculate Final Move
+                // Move = Drift + Noise
+                const percentChange = currentDrift + noise;
 
-                // Update the price
-                updateStockPrice(stock.symbol, newPrice);
+                // 4. Update Price
+                let newPrice = stock.price * (1 + percentChange);
+
+                // Safety clamps
+                const maxPrice = (baseStock?.price || 100) * 20;
+                const minPrice = 1.00; // Penny stock floor
+                newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+
+                priceUpdates[stock.symbol] = newPrice;
             });
 
-            // Clear news after it's been applied for a while (just for UI)
-            if (activeNews && Date.now() - activeNews.timestamp > 12000) {
-                setActiveNews(null);
-            }
-        }, 3000); // Update every 3 seconds
+            updateMarketPrices(priceUpdates);
+
+            // 🌡️ UPDATE MARKET SENTIMENT (Temperament Meter)
+            // Calculate average drift to determine overall market mood
+            const totalDrift = Object.values(driftRef.current).reduce((sum, val) => sum + val, 0);
+            const avgDrift = totalDrift / currentStocks.length;
+
+            // Normalize drift to 0-100 scale (0 = Extreme Fear, 100 = Extreme Greed)
+            // Typical drift is +/- 0.002. Let's scale it up.
+            let sentiment = 50 + (avgDrift * 10000);
+
+            // Clamp
+            sentiment = Math.max(0, Math.min(100, sentiment));
+
+            // Update store (throttled to avoid excessive re-renders, but here we do it every tick for smoothness)
+            useStore.getState().setMarketSentiment(sentiment);
+
+        }, 3000); // 3 second tick (Throttled for performance)
 
         return () => clearInterval(interval);
-    }, [stocks, updateStockPrice, activeNews, marketSentiment, sectorMomentum]);
+    }, []);
+
+    // 📰 NEWS SYSTEM (Organic Triggers)
+    useEffect(() => {
+        const checkNews = () => {
+            const timeSinceLastNews = Date.now() - lastNewsTimeRef.current;
+            const nextInterval = 120000; // 2 minutes
+
+            if (timeSinceLastNews > nextInterval) {
+                const currentStocks = useStore.getState().stocks;
+                if (currentStocks.length === 0) return;
+
+                const news = generateNewsEvent(currentStocks);
+                if (news) {
+                    setActiveNews(news);
+                    lastNewsTimeRef.current = Date.now();
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+                    // 🔥 NEWS IMPACTS DRIFT (The "Kick")
+                    // Instead of just jumping the price, we permanently shift the trend (Drift)
+                    // This creates a lasting narrative effect.
+
+                    const priceUpdates: Record<string, number> = {};
+
+                    currentStocks.forEach(stock => {
+                        let impactFactor = 0;
+                        let driftKick = 0;
+
+                        if (news.type === 'COMPANY' && news.symbol === stock.symbol) {
+                            impactFactor = news.impact; // Immediate jump
+                            driftKick = news.impact * 0.1; // Lasting trend shift
+                        } else if (news.type === 'SECTOR' && news.sector === stock.sector) {
+                            impactFactor = news.impact * 0.8;
+                            driftKick = news.impact * 0.05;
+                        } else if (news.type === 'MARKET' || news.type === 'ECONOMIC') {
+                            impactFactor = news.impact * 0.5;
+                            driftKick = news.impact * 0.02;
+                        }
+
+                        if (impactFactor !== 0) {
+                            // 1. Immediate Price Shock
+                            const currentPrice = stock.price;
+                            priceUpdates[stock.symbol] = currentPrice * (1 + impactFactor);
+
+                            // 2. Lasting Drift Shift
+                            if (driftRef.current[stock.symbol] !== undefined) {
+                                driftRef.current[stock.symbol] += driftKick;
+                            }
+                        }
+                    });
+
+                    if (Object.keys(priceUpdates).length > 0) {
+                        updateMarketPrices(priceUpdates);
+                    }
+                }
+            }
+        };
+
+        const newsInterval = setInterval(checkNews, 2000);
+        return () => clearInterval(newsInterval);
+    }, []);
 
     return {
         dismissEvent: () => setActiveNews(null)

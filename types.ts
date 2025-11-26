@@ -63,14 +63,18 @@ export interface PriceAlert {
 
 export interface DailyChallenge {
     id: string;
+    date: string; // YYYY-MM-DD
     title: string;
     description: string;
     type: 'profit' | 'volume' | 'sector' | 'streak' | 'growth';
     target: number;
     progress: number;
-    xpReward: number;
+    reward: {
+        xp: number;
+        cash?: number;
+    };
     completed: boolean;
-    icon: string; // Emoji icon
+    icon?: string; // Emoji icon
 }
 
 export interface DailyChallenges {
@@ -138,7 +142,37 @@ export interface AppState {
     addXp: (amount: number) => void;
     setProfile: (username: string, avatar: string) => void;
     reset: () => void;
-    checkLoginStreak: () => void;
+    checkLoginStreak: () => number;
     setActiveNews: (news: NewsEvent | null) => void;
     setMarketSentiment: (sentiment: number) => void;
+}
+
+// Crypto Trading Types
+export interface Crypto {
+    symbol: string;
+    name: string;
+    price: number;
+    basePrice: number; // Initial price for reset
+    history: PricePoint[];
+    volatility: number; // 0.03-0.10 (3%-10% per tick)
+    logo?: any; // PNG image require
+    description?: string;
+    educational?: string; // Educational content for tooltips
+}
+
+export interface CryptoHolding {
+    symbol: string;
+    quantity: number;
+    averageCost: number;
+    leverage: number; // 1, 2, 5, or 10
+    liquidationPrice?: number; // Only if leveraged (leverage > 1)
+    entryPrice?: number; // Price when position was opened
+}
+
+export interface OHLC {
+    timestamp: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
 }

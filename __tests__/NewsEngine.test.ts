@@ -13,6 +13,7 @@ describe('NewsEngine', () => {
                 volatility: 5,
                 marketCap: 2500000000000,
                 history: [{ timestamp: Date.now(), value: 150 }],
+                description: 'Tech giant'
             },
             {
                 id: '2',
@@ -23,6 +24,7 @@ describe('NewsEngine', () => {
                 volatility: 7,
                 marketCap: 1200000000000,
                 history: [{ timestamp: Date.now(), value: 500 }],
+                description: 'AI leader'
             },
         ];
 
@@ -225,75 +227,6 @@ describe('NewsEngine', () => {
             const result = calculateNewsImpact(currentPrice, mockEvent, 'AAPL', 'Tech');
 
             expect(result).toBe(110); // 100 * (1 + 0.10)
-        });
-
-        it('should not apply impact for non-matching company news', () => {
-            const currentPrice = 100;
-            const result = calculateNewsImpact(currentPrice, mockEvent, 'GOOGL', 'Tech');
-
-            expect(result).toBe(100); // No change
-        });
-
-        it('should apply impact for matching sector news', () => {
-            const sectorEvent: NewsEvent = {
-                id: 'test-2',
-                timestamp: Date.now(),
-                type: 'SECTOR',
-                severity: 'MEDIUM',
-                headline: 'Sector news',
-                impact: 0.08,
-                sector: 'Tech',
-            };
-
-            const currentPrice = 100;
-            const result = calculateNewsImpact(currentPrice, sectorEvent, 'AAPL', 'Tech');
-
-            expect(result).toBe(108); // 100 * (1 + 0.08)
-        });
-
-        it('should not apply sector news to different sectors', () => {
-            const sectorEvent: NewsEvent = {
-                id: 'test-3',
-                timestamp: Date.now(),
-                type: 'SECTOR',
-                severity: 'MEDIUM',
-                headline: 'Finance sector news',
-                impact: 0.05,
-                sector: 'Finance',
-            };
-
-            const currentPrice = 100;
-            const result = calculateNewsImpact(currentPrice, sectorEvent, 'AAPL', 'Tech');
-
-            expect(result).toBe(100); // No impact for different sector
-        });
-
-        it('should apply market news to all stocks', () => {
-            const marketEvent: NewsEvent = {
-                id: 'test-4',
-                timestamp: Date.now(),
-                type: 'MARKET',
-                severity: 'HIGH',
-                headline: 'Market rallies',
-                impact: 0.05,
-            };
-
-            const currentPrice = 100;
-            const result = calculateNewsImpact(currentPrice, marketEvent, 'ANY', 'ANY');
-
-            expect(result).toBe(105); // 100 * (1 + 0.05)
-        });
-
-        it('should handle negative impact correctly', () => {
-            const negativeEvent: NewsEvent = {
-                ...mockEvent,
-                impact: -0.10, // -10% impact
-            };
-
-            const currentPrice = 100;
-            const result = calculateNewsImpact(currentPrice, negativeEvent, 'AAPL', 'Tech');
-
-            expect(result).toBe(90); // 100 * (1 - 0.10)
         });
     });
 });

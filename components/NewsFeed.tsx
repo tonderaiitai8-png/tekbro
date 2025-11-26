@@ -104,10 +104,10 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
             </Animated.View>
 
             {/* News List */}
-            <AnimatedFlatList<NewsEvent>
+            <AnimatedFlatList
                 data={news}
-                renderItem={renderNewsCard}
-                keyExtractor={(item) => item.id}
+                renderItem={renderNewsCard as any}
+                keyExtractor={(item: any) => item.id}
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}

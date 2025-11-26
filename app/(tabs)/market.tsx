@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { Search, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useStore } from '../../store/useStore';
-import { GlassCard } from '../../components/GlassCard';
-import { MiniChart } from '../../components/MiniChart';
+import { StockCard } from '../../components/StockCard';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
-import { GRADIENTS, getStockEmoji } from '../../constants/gradients';
+import { GRADIENTS } from '../../constants/gradients';
 import { useMarketEngine } from '../../hooks/useMarketEngine';
 
 type SectorFilter = 'All' | 'Tech' | 'Finance' | 'Healthcare' | 'Energy' | 'Crypto';
@@ -17,7 +17,8 @@ type SectorFilter = 'All' | 'Tech' | 'Finance' | 'Healthcare' | 'Energy' | 'Cryp
 export default function MarketScreen() {
     useMarketEngine();
     const router = useRouter();
-    const { stocks } = useStore();
+    const stocks = useStore(state => state.stocks);
+    const marketSentiment = useStore(state => state.marketSentiment);
     const [searchQuery, setSearchQuery] = useState('');
     const [sectorFilter, setSectorFilter] = useState<SectorFilter>('All');
 
@@ -48,142 +49,98 @@ export default function MarketScreen() {
         Haptics.selectionAsync();
     };
 
-    const handleStockPress = (symbol: string) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push(`/stock/${symbol}`);
+    const getSentimentColor = (value: number) => {
+        if (value <= 25) return '#FF4444'; // Extreme Fear
+        if (value <= 45) return '#FF8800'; // Fear
+        if (value <= 55) return '#FFD700'; // Neutral
+        if (value <= 75) return '#00CC00'; // Greed
+        return '#00FF00'; // Extreme Greed
     };
 
-    const renderStockCard = ({ item }: any) => {
-        const priceChange = item.history.length >= 2
-            ? item.price - item.history[item.history.length - 2].value
-            : 0;
-        const priceChangePercent = item.history.length >= 2
-            ? (priceChange / item.history[item.history.length - 2].value) * 100
-            : 0;
-        const isPositive = priceChange >= 0;
-        const emoji = getStockEmoji(item.symbol);
+    const getSentimentLabel = (value: number) => {
+        if (value <= 25) return 'Extreme Fear';
+        if (value <= 45) return 'Fear';
+        if (value <= 55) return 'Neutral';
+        if (value <= 75) return 'Greed';
+        return 'Extreme Greed';
+    };
 
-        return (
-            <TouchableOpacity
-                onPress={() => handleStockPress(item.symbol)}
-                activeOpacity={0.8}
+    const renderHeader = () => (
+        <View style={styles.headerContainer}>
+            <View style={styles.titleRow}>
+                <Text style={styles.headerTitle}>Stock Market</Text>
+                {/* Market Temperament Meter */}
+                <View style={styles.sentimentContainer}>
+                    <Text style={styles.sentimentLabel}>Market Mood</Text>
+                    <View style={[styles.sentimentBadge, { borderColor: getSentimentColor(marketSentiment) }]}>
+                        <Zap size={12} color={getSentimentColor(marketSentiment)} fill={getSentimentColor(marketSentiment)} />
+                        <Text style={[styles.sentimentValue, { color: getSentimentColor(marketSentiment) }]}>
+                            {Math.round(marketSentiment)} - {getSentimentLabel(marketSentiment)}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* Search Bar */}
+            <LinearGradient
+                colors={['rgba(6, 182, 212, 0.1)', 'rgba(6, 182, 212, 0.05)']}
+                style={styles.searchContainer}
             >
-                <GlassCard style={styles.stockCard}>
-                    <View style={styles.stockHeader}>
-                        {/* Emoji Icon */}
-                        <View style={styles.emojiContainer}>
-                            <Text style={styles.emoji}>{emoji}</Text>
-                        </View>
+                <Search size={20} color={COLORS.textSub} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search stocks..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+            </LinearGradient>
 
-                        {/* Stock Info */}
-                        <View style={styles.stockInfo}>
-                            <Text style={styles.stockSymbol}>{item.symbol}</Text>
-                            <Text style={styles.stockName} numberOfLines={1}>{item.name}</Text>
-                        </View>
-
-                        {/* Mini Chart */}
-                        <View style={styles.chartContainer}>
-                            <MiniChart
-                                data={item.history}
-                                color={isPositive ? COLORS.positive : COLORS.negative}
-                                width={80}
-                                height={40}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Price & Buy Button */}
-                    <View style={styles.stockFooter}>
-                        <View style={styles.priceSection}>
-                            <Text style={styles.price}>£{item.price.toFixed(2)}</Text>
-                            <View style={[styles.changeBadge, { backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
-                                {isPositive ? (
-                                    <TrendingUp size={12} color={COLORS.positive} strokeWidth={3} />
-                                ) : (
-                                    <TrendingDown size={12} color={COLORS.negative} strokeWidth={3} />
-                                )}
-                                <Text style={[styles.changeText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-                                    {isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%
-                                </Text>
-                            </View>
-                        </View>
-
-                        <TouchableOpacity
-                            onPress={() => handleStockPress(item.symbol)}
-                            activeOpacity={0.8}
-                        >
+            {/* Sector Filters */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filtersScroll}
+                contentContainerStyle={styles.filtersContainer}
+            >
+                {sectors.map(sector => (
+                    <TouchableOpacity
+                        key={sector}
+                        onPress={() => handleSectorFilter(sector)}
+                        activeOpacity={0.7}
+                    >
+                        {sectorFilter === sector ? (
                             <LinearGradient
-                                colors={GRADIENTS.buy}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={styles.buyButton}
+                                colors={GRADIENTS.portfolio}
+                                style={styles.filterChip}
                             >
-                                <Text style={styles.buyButtonText}>Buy</Text>
+                                <Text style={styles.filterChipTextActive}>{sector}</Text>
                             </LinearGradient>
-                        </TouchableOpacity>
-                    </View>
-                </GlassCard>
-            </TouchableOpacity>
-        );
-    };
+                        ) : (
+                            <View style={styles.filterChipInactive}>
+                                <Text style={styles.filterChipText}>{sector}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
+    );
+
+    const renderStockCard = ({ item }: { item: any }) => (
+        <StockCard stock={item} />
+    );
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Market</Text>
-
-                {/* Search Bar */}
-                <LinearGradient
-                    colors={['rgba(6, 182, 212, 0.2)', 'rgba(6, 182, 212, 0.05)']}
-                    style={styles.searchContainer}
-                >
-                    <Search size={20} color={COLORS.textSub} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search stocks..."
-                        placeholderTextColor={COLORS.textMuted}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                </LinearGradient>
-
-                {/* Sector Filters */}
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.filtersScroll}
-                    contentContainerStyle={styles.filtersContainer}
-                >
-                    {sectors.map(sector => (
-                        <TouchableOpacity
-                            key={sector}
-                            onPress={() => handleSectorFilter(sector)}
-                            activeOpacity={0.7}
-                        >
-                            {sectorFilter === sector ? (
-                                <LinearGradient
-                                    colors={GRADIENTS.portfolio}
-                                    style={styles.filterChip}
-                                >
-                                    <Text style={styles.filterChipTextActive}>{sector}</Text>
-                                </LinearGradient>
-                            ) : (
-                                <View style={styles.filterChipInactive}>
-                                    <Text style={styles.filterChipText}>{sector}</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
-
-            {/* Stock List */}
-            <FlatList
+            <FlashList
+                ListHeaderComponent={renderHeader}
                 data={filteredStocks}
-                keyExtractor={item => item.symbol}
+                keyExtractor={(item: any) => item.symbol}
                 renderItem={renderStockCard}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[styles.listContent, { paddingHorizontal: 16 }]}
                 showsVerticalScrollIndicator={false}
+                estimatedItemSize={140}
             />
         </SafeAreaView>
     );
@@ -194,17 +151,44 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    header: {
+    headerContainer: {
         paddingHorizontal: SPACING.xl,
         paddingTop: SPACING.lg,
         paddingBottom: SPACING.md,
     },
+    titleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.lg,
+    },
     headerTitle: {
         fontSize: 32,
-        fontWeight: '800',
-        color: COLORS.text,
         fontFamily: FONTS.bold,
-        marginBottom: SPACING.lg,
+        color: COLORS.text,
+    },
+    sentimentContainer: {
+        alignItems: 'flex-end',
+    },
+    sentimentLabel: {
+        fontSize: 10,
+        fontFamily: FONTS.medium,
+        color: COLORS.textSub,
+        marginBottom: 2,
+    },
+    sentimentBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: RADIUS.full,
+        borderWidth: 1,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+    },
+    sentimentValue: {
+        fontSize: 10,
+        fontFamily: FONTS.bold,
     },
     searchContainer: {
         flexDirection: 'row',
@@ -255,84 +239,6 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.semibold,
     },
     listContent: {
-        padding: SPACING.xl,
-        gap: SPACING.md,
-    },
-    stockCard: {
-        padding: SPACING.lg,
-    },
-    stockHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    emojiContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: SPACING.md,
-    },
-    emoji: {
-        fontSize: 24,
-    },
-    stockInfo: {
-        flex: 1,
-    },
-    stockSymbol: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: COLORS.text,
-        fontFamily: FONTS.bold,
-    },
-    stockName: {
-        fontSize: 13,
-        color: COLORS.textSub,
-        fontFamily: FONTS.regular,
-    },
-    chartContainer: {
-        marginLeft: SPACING.sm,
-    },
-    stockFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    priceSection: {
-        flex: 1,
-    },
-    price: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: COLORS.text,
-        fontFamily: FONTS.bold,
-        marginBottom: SPACING.xs,
-    },
-    changeBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        alignSelf: 'flex-start',
-        paddingHorizontal: SPACING.sm,
-        paddingVertical: 4,
-        borderRadius: RADIUS.sm,
-    },
-    changeText: {
-        fontSize: 12,
-        fontWeight: '600',
-        fontFamily: FONTS.semibold,
-    },
-    buyButton: {
-        paddingHorizontal: SPACING.xl,
-        paddingVertical: SPACING.md,
-        borderRadius: RADIUS.md,
-    },
-    buyButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#000',
-        fontFamily: FONTS.bold,
+        paddingBottom: SPACING.xl,
     },
 });

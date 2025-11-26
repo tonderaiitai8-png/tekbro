@@ -1,26 +1,30 @@
 import { useEffect, useState, useRef } from 'react';
 import { View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMarketEngine } from '../hooks/useMarketEngine';
+import { useCryptoEngine } from '../hooks/useCryptoEngine';
 import { useStore } from '../store/useStore';
-import { NewsBanner } from '../components/NewsBanner';
+import { GameAlert } from '../components/GameAlert';
 import { LevelUpModal } from '../components/LevelUpModal';
 import { ToastContainer } from '../components/ToastContainer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { COLORS } from '../constants/theme';
 import { analytics } from '../utils/analytics';
+import { initializeCryptoStore } from '../utils/cryptoStoreInit';
 
 export default function RootLayout() {
     const router = useRouter();
     const segments = useSegments();
     const [isReady, setIsReady] = useState(false);
+    const rootNavigationState = useRootNavigationState();
 
-    // Run market engine globally
+    // Run market engines globally
     useMarketEngine();
+    useCryptoEngine();
 
     const { activeNews, setActiveNews, checkLoginStreak, syncAchievements, level } = useStore();
     const [showLevelUp, setShowLevelUp] = useState(false);
@@ -33,8 +37,12 @@ export default function RootLayout() {
         prevLevelRef.current = level;
     }, [level]);
 
+    const onboardingChecked = useRef(false);
+
     useEffect(() => {
         async function checkOnboarding() {
+            if (onboardingChecked.current) return;
+
             try {
                 // Initialize analytics
                 analytics.init();
@@ -44,23 +52,35 @@ export default function RootLayout() {
                 checkLoginStreak();
                 syncAchievements();
 
+                // Initialize crypto store
+                initializeCryptoStore();
+
+                // Check onboarding status
                 const completed = await AsyncStorage.getItem('onboarding_completed');
 
                 if (!completed && segments[0] !== 'onboarding') {
+                    onboardingChecked.current = true;
+                    setIsReady(true);
                     router.replace('/onboarding');
+                } else {
+                    onboardingChecked.current = true;
+                    setIsReady(true);
                 }
             } catch (error) {
                 console.error('Error checking onboarding:', error);
                 analytics.trackError(error as Error, { context: 'onboarding_check' });
-            } finally {
+                onboardingChecked.current = true;
                 setIsReady(true);
             }
         }
 
-        checkOnboarding();
-    }, []);
+        if (rootNavigationState?.key && !onboardingChecked.current) {
+            checkOnboarding();
+        }
+    }, [rootNavigationState?.key]);
 
-    if (!isReady) {
+    // Show a loading screen or splash while checking onboarding
+    if (!isReady && !rootNavigationState?.key) {
         return null;
     }
 
@@ -87,8 +107,10 @@ export default function RootLayout() {
                                 }}
                             />
                         </Stack>
-                        <NewsBanner
-                            news={activeNews}
+                        <GameAlert
+                            visible={!!activeNews}
+                            title={activeNews?.type === 'COMPANY' ? `NEWS: ${activeNews.symbol}` : 'MARKET UPDATE'}
+                            message={activeNews?.headline || ''}
                             onDismiss={() => setActiveNews(null)}
                         />
                         <LevelUpModal

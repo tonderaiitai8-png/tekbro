@@ -1,0 +1,55 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch: # Allows manual triggering from GitHub Actions tab
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prebuild Expo
+        run: npx expo prebuild --platform ios --no-interactive
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS Archive (Unsigned)
+        run: |
+          cd ios
+          xcodebuild -workspace PaperTrader.xcworkspace \
+            -scheme PaperTrader \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath PaperTrader.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Create IPA
+        run: |
+          cd ios
+          mkdir -p Payload
+          mv PaperTrader.xcarchive/Products/Applications/PaperTrader.app Payload/
+          zip -r PaperTrader.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaperTrader-IPA
+          path: ios/PaperTrader.ipa

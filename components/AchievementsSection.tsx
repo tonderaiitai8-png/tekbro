@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, SectionList, SafeAreaView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Achievement } from '../types';
 import { AchievementGrid } from './AchievementGrid';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
@@ -110,7 +111,16 @@ export function AchievementsSection({ achievements }: Props) {
                             </View>
                         )}
                         renderItem={({ item }) => (
-                            <View style={[styles.card, item.unlocked && styles.cardUnlocked]}>
+                            <View style={[styles.card, !item.unlocked && styles.cardLocked]}>
+                                {item.unlocked ? (
+                                    <LinearGradient
+                                        colors={['#000000', '#003300']} // Black to Deep Green
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFillObject}
+                                    />
+                                ) : null}
+
                                 <View style={[styles.iconContainer, !item.unlocked && styles.iconLocked]}>
                                     <Text style={styles.icon}>{item.icon}</Text>
                                 </View>
@@ -267,10 +277,10 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         gap: SPACING.md,
         marginBottom: SPACING.sm,
+        overflow: 'hidden', // Required for gradient
     },
-    cardUnlocked: {
-        borderColor: COLORS.accent + '40',
-        backgroundColor: COLORS.accent + '05',
+    cardLocked: {
+        // No special style needed, just default
     },
     iconContainer: {
         width: 48,

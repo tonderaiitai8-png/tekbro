@@ -13,14 +13,14 @@ import { LeaderboardEntry } from '../../types';
 // Mock Data Generator
 const generateMockLeaderboard = (userEquity: number, username: string, userLevel: number, userAchievements: number): LeaderboardEntry[] => {
     const bots = [
-        { id: '1', username: 'Warren B.', equity: 150000, level: 42, achievementsUnlocked: 15 },
-        { id: '2', username: 'Elon M.', equity: 125000, level: 38, achievementsUnlocked: 12 },
-        { id: '3', username: 'Nancy P.', equity: 98000, level: 35, achievementsUnlocked: 10 },
-        { id: '4', username: 'RoaringKitty', equity: 85000, level: 30, achievementsUnlocked: 8 },
-        { id: '5', username: 'Satoshi', equity: 72000, level: 28, achievementsUnlocked: 7 },
-        { id: '6', username: 'WolfOfWallSt', equity: 65000, level: 25, achievementsUnlocked: 6 },
-        { id: '7', username: 'DiamondHands', equity: 55000, level: 22, achievementsUnlocked: 5 },
-        { id: '8', username: 'ApeStrong', equity: 45000, level: 20, achievementsUnlocked: 4 },
+        { id: '1', username: 'Warren B.', equity: 15000000, level: 99, achievementsUnlocked: 48 },
+        { id: '2', username: 'Elon M.', equity: 8500000, level: 85, achievementsUnlocked: 42 },
+        { id: '3', username: 'Nancy P.', equity: 5200000, level: 78, achievementsUnlocked: 39 },
+        { id: '4', username: 'RoaringKitty', equity: 2800000, level: 65, achievementsUnlocked: 30 },
+        { id: '5', username: 'Satoshi', equity: 1500000, level: 60, achievementsUnlocked: 25 },
+        { id: '6', username: 'WolfOfWallSt', equity: 950000, level: 55, achievementsUnlocked: 20 },
+        { id: '7', username: 'DiamondHands', equity: 750000, level: 45, achievementsUnlocked: 15 },
+        { id: '8', username: 'ApeStrong', equity: 600000, level: 35, achievementsUnlocked: 10 },
         { id: '9', username: 'PaperHands', equity: 12000, level: 5, achievementsUnlocked: 1 },
     ];
 

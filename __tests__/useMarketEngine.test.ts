@@ -30,7 +30,7 @@ describe('useMarketEngine', () => {
             },
         ];
 
-        (useStore as jest.Mock).mockReturnValue({
+        (useStore as unknown as jest.Mock).mockReturnValue({
             stocks: mockStocks,
             setStocks: jest.fn(),
             updateStockPrice: jest.fn(),
@@ -106,7 +106,7 @@ describe('useMarketEngine', () => {
                 ],
             }];
 
-            (useStore as jest.Mock).mockReturnValue({
+            (useStore as unknown as jest.Mock).mockReturnValue({
                 stocks: mockLowPriceStock,
                 setStocks: jest.fn(),
                 updateStockPrice: jest.fn(),
@@ -180,7 +180,7 @@ describe('useMarketEngine', () => {
                 },
             ];
 
-            (useStore as jest.Mock).mockReturnValue({
+            (useStore as unknown as jest.Mock).mockReturnValue({
                 stocks: mockStocks,
                 setStocks: jest.fn(),
                 updateStockPrice: jest.fn(),
@@ -225,7 +225,7 @@ describe('useMarketEngine', () => {
             NewsEngine.shouldGenerateNews = jest.fn().mockReturnValue(true);
             NewsEngine.generateNewsEvent = jest.fn().mockReturnValue(mockNews);
 
-            (useStore as jest.Mock).mockReturnValue({
+            (useStore as unknown as jest.Mock).mockReturnValue({
                 stocks: [{
                     id: '1',
                     symbol: 'AAPL',
@@ -274,7 +274,7 @@ describe('useMarketEngine', () => {
                 })),
             }];
 
-            (useStore as jest.Mock).mockReturnValue({
+            (useStore as unknown as jest.Mock).mockReturnValue({
                 stocks: mockStock,
                 setStocks: jest.fn(),
                 updateStockPrice: jest.fn(),

@@ -1,14 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Achievement } from '../types';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+    useAnimatedScrollHandler,
+    useSharedValue,
+    useAnimatedStyle,
+    interpolate,
+    Extrapolate,
+    withSpring
+} from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = 140;
+const CARD_GAP = SPACING.md;
+const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 
 interface Props {
     achievements: Achievement[];
 }
 
 export function AchievementGrid({ achievements }: Props) {
+    const scrollX = useSharedValue(0);
+
+    const scrollHandler = useAnimatedScrollHandler({
+        onScroll: (event) => {
+            scrollX.value = event.contentOffset.x;
+        },
+    });
+
     const getTierColor = (tier: string) => {
         switch (tier) {
             case 'gold': return '#EAB308'; // Amber-500
@@ -22,75 +44,97 @@ export function AchievementGrid({ achievements }: Props) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
+    const renderItem = ({ item, index }: { item: Achievement; index: number }) => {
+        return (
+            <TouchableOpacity
+                key={item.id}
+                style={styles.card}
+                onPress={() => handlePress(item)}
+                activeOpacity={0.7}
+            >
+                {item.unlocked && (
+                    <LinearGradient
+                        colors={['#000000', '#003300']} // Black to Deep Green
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFillObject}
+                    />
+                )}
+
+                {/* Icon */}
+                <View style={[
+                    styles.iconContainer,
+                    !item.unlocked && styles.iconLocked
+                ]}>
+                    <Text style={styles.icon}>{item.icon}</Text>
+                </View>
+
+                {/* Title */}
+                <Text style={[
+                    styles.title,
+                    !item.unlocked && styles.textLocked
+                ]} numberOfLines={1}>
+                    {item.title}
+                </Text>
+
+                {/* Description */}
+                <Text style={[
+                    styles.description,
+                    !item.unlocked && styles.textLocked
+                ]} numberOfLines={2}>
+                    {item.description}
+                </Text>
+
+                {/* Progress or Reward */}
+                {!item.unlocked ? (
+                    <View style={styles.progressContainer}>
+                        <View style={styles.progressBar}>
+                            <View
+                                style={[
+                                    styles.progressFill,
+                                    {
+                                        width: `${Math.min(100, ((item.progress ?? 0) / (item.target ?? 1)) * 100)}%`,
+                                        backgroundColor: COLORS.accent
+                                    }
+                                ]}
+                            />
+                        </View>
+                        <Text style={styles.progressText}>
+                            {(item.progress ?? 0).toFixed(0)}/{item.target ?? 0}
+                        </Text>
+                    </View>
+                ) : (
+                    <View style={styles.rewardBadge}>
+                        <Text style={styles.rewardText}>
+                            +{item.xpReward ?? 0} XP
+                        </Text>
+                    </View>
+                )}
+
+                {/* Tier indicator */}
+                <View style={[styles.tierIndicator, { backgroundColor: getTierColor(item.tier ?? 'bronze') }]} />
+            </TouchableOpacity>
+        );
+    };
+
     return (
         <View style={styles.container}>
-            <ScrollView
+            <Animated.FlatList
+                data={achievements}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.grid}
-            >
-                {achievements.map((ach) => (
-                    <TouchableOpacity
-                        key={ach.id}
-                        style={styles.card}
-                        onPress={() => handlePress(ach)}
-                        activeOpacity={0.7}
-                    >
-                        {/* Icon */}
-                        <View style={[
-                            styles.iconContainer,
-                            !ach.unlocked && styles.iconLocked
-                        ]}>
-                            <Text style={styles.icon}>{ach.icon}</Text>
-                        </View>
+                snapToInterval={SNAP_INTERVAL}
+                decelerationRate="fast"
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
+            />
 
-                        {/* Title */}
-                        <Text style={[
-                            styles.title,
-                            !ach.unlocked && styles.textLocked
-                        ]} numberOfLines={1}>
-                            {ach.title}
-                        </Text>
-
-                        {/* Description */}
-                        <Text style={[
-                            styles.description,
-                            !ach.unlocked && styles.textLocked
-                        ]} numberOfLines={2}>
-                            {ach.description}
-                        </Text>
-
-                        {/* Progress or Reward */}
-                        {!ach.unlocked ? (
-                            <View style={styles.progressContainer}>
-                                <View style={styles.progressBar}>
-                                    <View
-                                        style={[
-                                            styles.progressFill,
-                                            {
-                                                width: `${Math.min(100, ((ach.progress ?? 0) / (ach.target ?? 1)) * 100)}%`,
-                                                backgroundColor: COLORS.accent
-                                            }
-                                        ]}
-                                    />
-                                </View>
-                                <Text style={styles.progressText}>
-                                    {(ach.progress ?? 0).toFixed(0)}/{ach.target ?? 0}
-                                </Text>
-                            </View>
-                        ) : (
-                            <View style={styles.rewardBadge}>
-                                <Text style={styles.rewardText}>
-                                    +{ach.xpReward ?? 0} XP
-                                </Text>
-                            </View>
-                        )}
-
-                        {/* Tier indicator */}
-                        <View style={[styles.tierIndicator, { backgroundColor: getTierColor(ach.tier ?? 'bronze') }]} />
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            {/* Fluid Dots Indicator - REMOVED for cleaner UI */}
+            {/* The horizontal scroll is intuitive enough without dots cluttering the view */}
         </View>
     );
 }
@@ -99,28 +143,18 @@ const styles = StyleSheet.create({
     container: {
         marginBottom: SPACING.xxl,
     },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: COLORS.text,
-        fontFamily: FONTS.semibold,
-        marginBottom: SPACING.lg,
-        paddingHorizontal: SPACING.xl,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
     grid: {
         paddingHorizontal: SPACING.xl,
-        gap: SPACING.md,
     },
     card: {
-        width: 140,
+        width: CARD_WIDTH,
         backgroundColor: COLORS.bgElevated,
         borderRadius: RADIUS.md,
         padding: SPACING.md,
         borderWidth: 1,
         borderColor: COLORS.border,
         position: 'relative',
+        overflow: 'hidden',
     },
     iconContainer: {
         width: 48,
@@ -194,5 +228,17 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
+    },
+    dotsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: SPACING.md,
+        gap: 6,
+    },
+    dot: {
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.accent,
     },
 });

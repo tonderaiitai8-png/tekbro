@@ -1,44 +1,34 @@
 import React, { memo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Zap, Star } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
-import { Stock } from '../types';
-import { useStore } from '../store/useStore';
+import { Crypto } from '../types';
+import { useCryptoStore } from '../store/useCryptoStore';
 import { HapticPatterns } from '../utils/haptics';
+import { MiniChart } from './MiniChart';
 
-interface StockCardProps {
-    stock: Stock;
+interface CryptoCardProps {
+    crypto: Crypto;
 }
 
-// Company icons mapping
-const COMPANY_ICONS: Record<string, string> = {
-    'AAPL': '🍎', 'NVDA': '🎮', 'TSLA': '🚗', 'MSFT': '💻', 'GOOGL': '🔍',
-    'AMZN': '📦', 'META': '👥', 'NFLX': '🎬', 'PLTR': '🛡️', 'COIN': '🪙',
-    'ABNB': '🏠', 'UBER': '🚕', 'SHOP': '🛍️', 'SQ': '💳', 'RBLX': '🎮',
-    'SNAP': '👻', 'SPOT': '🎵', 'TWTR': '🐦', 'ZM': '📹', 'DOCU': '📝',
-};
-
-const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
+const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
     const router = useRouter();
-    // OPTIMIZATION: Select only what we need to prevent re-renders
-    const watchlist = useStore(state => state.watchlist);
-    const toggleWatchlist = useStore(state => state.toggleWatchlist);
-    const buyStock = useStore(state => state.buyStock);
-    const cash = useStore(state => state.cash);
-
-    const isWatchlisted = watchlist.includes(stock.symbol);
+    // OPTIMIZATION: Select only what we need
+    // Note: We might want a separate watchlist for crypto later, or use the same one
+    // For now, let's assume we might add crypto watchlist support later
+    const isWatchlisted = false;
 
     // Animation for press effect
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
     // Calculate price change
-    const priceChange = stock.history.length >= 2
-        ? stock.price - stock.history[stock.history.length - 2].value
+    const priceChange = crypto.history.length >= 2
+        ? crypto.price - crypto.history[crypto.history.length - 2].value
         : 0;
-    const changePercent = stock.history.length >= 2
-        ? (priceChange / stock.history[stock.history.length - 2].value) * 100
+    const changePercent = crypto.history.length >= 2
+        ? (priceChange / crypto.history[crypto.history.length - 2].value) * 100
         : 0;
 
     const isPositive = priceChange >= 0;
@@ -61,40 +51,24 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
         }).start();
     };
 
-    const handleQuickBuy = (e: any) => {
-        e.stopPropagation();
-        if (cash >= stock.price) {
-            buyStock(stock.symbol, 1, stock.price);
-            HapticPatterns.tradeExecuted();
-        } else {
-            HapticPatterns.error();
-        }
-    };
-
-    const handleToggleWatchlist = (e: any) => {
-        e.stopPropagation();
-        toggleWatchlist(stock.symbol);
-        HapticPatterns.light();
-    };
-
     const getGradientColors = (): [string, string] => {
-        // FIFA Style: Deep, rich backgrounds
+        // Crypto Style: Deep Purple/Indigo/Violet
         if (isPositive) {
-            return ['rgba(13, 77, 77, 0.8)', 'rgba(26, 95, 95, 0.4)']; // Deep Cyan/Green Glass
+            return ['rgba(74, 0, 224, 0.8)', 'rgba(142, 45, 226, 0.4)']; // Purple/Violet
         } else {
-            return ['rgba(77, 26, 26, 0.8)', 'rgba(95, 38, 38, 0.4)']; // Deep Red/Maroon Glass
+            return ['rgba(224, 0, 74, 0.8)', 'rgba(226, 45, 100, 0.4)']; // Pink/Red
         }
     };
 
     const getBorderColor = () => {
-        if (isPositive) return COLORS.accent; // Glowing Cyan
-        return '#FF4444'; // Glowing Red
+        if (isPositive) return '#8E2DE2'; // Violet
+        return '#FF4444'; // Red
     };
 
     return (
         <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
             <TouchableOpacity
-                onPress={() => router.push(`/stock/${stock.symbol}`)}
+                onPress={() => router.push(`/crypto/${crypto.symbol}`)}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 activeOpacity={1}
@@ -106,48 +80,58 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
                     style={[styles.card, { borderColor: getBorderColor() }]}
                 >
                     <View style={styles.cardContent}>
-                        {/* Left: Icon & Rank */}
+                        {/* Left: Logo & Rank */}
                         <View style={styles.leftSection}>
                             <View style={[styles.iconContainer, { shadowColor: getBorderColor() }]}>
-                                <Text style={styles.iconText}>{COMPANY_ICONS[stock.symbol] || '📈'}</Text>
+                                {crypto.logo ? (
+                                    <Image source={crypto.logo} style={styles.logo} resizeMode="contain" />
+                                ) : (
+                                    <Text style={styles.iconText}>{crypto.symbol[0]}</Text>
+                                )}
                             </View>
-                            {/* Momentum Badge (FIFA "Form") */}
-                            {Math.abs(changePercent) > 2 && (
+                            {/* Volatility Badge */}
+                            {Math.abs(changePercent) > 5 && (
                                 <View style={styles.badge}>
                                     <Zap size={10} color="#000" fill="#000" />
-                                    <Text style={styles.badgeText}>HOT</Text>
+                                    <Text style={styles.badgeText}>VOLATILE</Text>
                                 </View>
                             )}
                         </View>
 
-                        {/* Center: Info */}
+                        {/* Center: Info & Chart */}
                         <View style={styles.centerSection}>
                             <View style={styles.nameRow}>
-                                <Text style={styles.symbol}>{stock.symbol}</Text>
-                                <TouchableOpacity onPress={handleToggleWatchlist}>
-                                    <Star
-                                        size={14}
-                                        color={isWatchlisted ? '#FFD700' : 'rgba(255,255,255,0.3)'}
-                                        fill={isWatchlisted ? '#FFD700' : 'transparent'}
-                                    />
-                                </TouchableOpacity>
+                                <Text style={styles.symbol}>{crypto.symbol}</Text>
                             </View>
                             <Text style={styles.companyName} numberOfLines={1}>
-                                {stock.name}
+                                {crypto.name}
                             </Text>
+                            <View style={styles.trendContainer}>
+                                {isPositive ? (
+                                    <>
+                                        <TrendingUp size={14} color="#00FF00" />
+                                        <Text style={[styles.trendText, { color: '#00FF00' }]}>Trending Up</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TrendingDown size={14} color="#FF4444" />
+                                        <Text style={[styles.trendText, { color: '#FF4444' }]}>Trending Down</Text>
+                                    </>
+                                )}
+                            </View>
                         </View>
 
                         {/* Right: Price & Action */}
                         <View style={styles.rightSection}>
                             <Text style={styles.price}>
-                                £{stock.price.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
+                                £{crypto.price.toLocaleString(undefined, {
+                                    minimumFractionDigits: crypto.price < 1 ? 4 : 2,
+                                    maximumFractionDigits: crypto.price < 1 ? 4 : 2
                                 })}
                             </Text>
                             <View style={[styles.changeBadge, { backgroundColor: isPositive ? 'rgba(0,255,255,0.1)' : 'rgba(255,0,0,0.1)' }]}>
-                                {isPositive ? <TrendingUp size={12} color={COLORS.accent} /> : <TrendingDown size={12} color="#FF4444" />}
-                                <Text style={[styles.changeText, { color: isPositive ? COLORS.accent : '#FF4444' }]}>
+                                {isPositive ? <TrendingUp size={12} color="#00FF00" /> : <TrendingDown size={12} color="#FF4444" />}
+                                <Text style={[styles.changeText, { color: isPositive ? '#00FF00' : '#FF4444' }]}>
                                     {changePercent.toFixed(2)}%
                                 </Text>
                             </View>
@@ -159,12 +143,12 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     );
 };
 
-// Memoize with custom comparison to prevent unnecessary re-renders
-export const StockCard = memo(StockCardComponent, (prevProps, nextProps) => {
+// Memoize
+export const CryptoCard = memo(CryptoCardComponent, (prevProps, nextProps) => {
     return (
-        prevProps.stock.symbol === nextProps.stock.symbol &&
-        prevProps.stock.price === nextProps.stock.price &&
-        prevProps.stock.history.length === nextProps.stock.history.length
+        prevProps.crypto.symbol === nextProps.crypto.symbol &&
+        prevProps.crypto.price === nextProps.crypto.price &&
+        prevProps.crypto.history.length === nextProps.crypto.history.length
     );
 });
 
@@ -179,8 +163,8 @@ const styles = StyleSheet.create({
     },
     card: {
         borderRadius: RADIUS.xl,
-        borderWidth: 1.5, // Thicker border for "Card" feel
-        padding: 0, // Reset padding for inner content
+        borderWidth: 1.5,
+        padding: 0,
         overflow: 'hidden',
     },
     cardContent: {
@@ -193,34 +177,35 @@ const styles = StyleSheet.create({
         marginRight: SPACING.md,
     },
     iconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: RADIUS.lg,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        width: 48,
+        height: 48,
+        borderRadius: RADIUS.full,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
+        overflow: 'hidden',
+    },
+    logo: {
+        width: 32,
+        height: 32,
     },
     iconText: {
-        fontSize: 32,
+        fontSize: 20,
+        fontFamily: FONTS.bold,
+        color: COLORS.white,
     },
     badge: {
         position: 'absolute',
         bottom: -6,
-        backgroundColor: COLORS.accent,
+        backgroundColor: '#FFD700',
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.full,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 2,
-        shadowColor: COLORS.accent,
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
     },
     badgeText: {
         fontSize: 8,
@@ -238,7 +223,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     symbol: {
-        fontSize: 20,
+        fontSize: 18,
         fontFamily: FONTS.bold,
         color: '#FFF',
         letterSpacing: 0.5,
@@ -247,13 +232,24 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: FONTS.medium,
         color: 'rgba(255,255,255,0.6)',
+        marginBottom: 4,
+    },
+    trendContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 4,
+    },
+    trendText: {
+        fontSize: 12,
+        fontFamily: FONTS.medium,
     },
     rightSection: {
         alignItems: 'flex-end',
         justifyContent: 'center',
     },
     price: {
-        fontSize: 18,
+        fontSize: 16,
         fontFamily: FONTS.bold,
         color: '#FFF',
         marginBottom: 4,

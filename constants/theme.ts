@@ -39,6 +39,12 @@ export const DARK_THEME = {
     warning: '#F59E0B', // Amber-500
     warningSubtle: '#F59E0B10',
     warningDim: '#F59E0B10', // Alias
+
+    // Aliases for charts and alerts
+    danger: '#EF4444',
+    chartUp: '#10B981',
+    chartDown: '#EF4444',
+    white: '#FFFFFF',
 };
 
 export const LIGHT_THEME = {
@@ -79,6 +85,12 @@ export const LIGHT_THEME = {
     warning: '#D97706',
     warningSubtle: '#D9770610',
     warningDim: '#D9770610',
+
+    // Aliases for charts and alerts
+    danger: '#DC2626',
+    chartUp: '#059669',
+    chartDown: '#DC2626',
+    white: '#FFFFFF',
 };
 
 export const COLORS = DARK_THEME;

@@ -55,7 +55,7 @@ export const DailyChallengesModal: React.FC<DailyChallengesModalProps> = ({ visi
                                             <Text style={styles.challengeDescription}>{challenge.description}</Text>
                                         </View>
                                         <View style={styles.xpBadge}>
-                                            <Text style={styles.xpText}>{challenge.xpReward} XP</Text>
+                                            <Text style={styles.xpText}>{challenge.reward?.xp || (challenge as any).xpReward || 0} XP</Text>
                                         </View>
                                     </View>
 

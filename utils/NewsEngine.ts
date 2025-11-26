@@ -110,6 +110,40 @@ const ECONOMIC_NEWS: Array<{ headline: string; impact: number }> = [
     { headline: '💰 Consumer spending hits record levels', impact: 0.04 }
 ];
 
+// Crypto-specific news templates
+const CRYPTO_COIN_NEWS: Record<string, string[]> = {
+    'BTC': [
+        '🪙 Bitcoin Halving event approaches - miners prepare',
+        '📈 Institutional inflows into Bitcoin ETFs hit record high',
+        '🌍 Major country adopts Bitcoin as legal tender',
+        '⚠️ Bitcoin faces resistance at key psychological level'
+    ],
+    'ETH': [
+        '💎 Ethereum network upgrade reduces gas fees significantly',
+        '📉 DeFi activity on Ethereum surges to new highs',
+        '🏦 Major bank launches Ethereum-based stablecoin',
+        '⚠️ Ethereum validator concerns spark centralization debate'
+    ],
+    'SOL': [
+        '🚀 Solana network speed hits record TPS',
+        '📱 Solana mobile phone sells out instantly',
+        '⚠️ Solana network faces brief outage - developers responding',
+        '🤝 Major NFT project migrates to Solana'
+    ],
+    'ADA': [
+        '🔬 Cardano completes major hard fork upgrade',
+        '🌍 Cardano foundation partners with African governments',
+        '📉 Cardano smart contract usage grows steadily',
+        '⚠️ Critics question Cardano development speed'
+    ],
+    'DOGE': [
+        '🐕 Dogecoin endorsed by tech billionaire again',
+        '🚀 Dogecoin accepted for payments by major retailer',
+        '📉 Meme coin mania cools off - Doge dips',
+        '🌕 Doge community funds new space mission'
+    ]
+};
+
 export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
     const random = Math.random();
 
@@ -120,54 +154,66 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
     // 40% company news, 25% sector news, 20% market, 15% economic
     if (random < 0.40) {
         // Company-specific news
-        const eligibleStocks = stocks.filter(s => COMPANY_NEWS_TEMPLATES[s.symbol]);
-        if (eligibleStocks.length > 0) {
-            const stock = eligibleStocks[Math.floor(Math.random() * eligibleStocks.length)];
-            const templates = COMPANY_NEWS_TEMPLATES[stock.symbol];
-            const headline = templates[Math.floor(Math.random() * templates.length)];
-
-            // Determine impact and suggestion
-            const isPositive = Math.random() > 0.3; // 70% positive news
-            const impact = isPositive
-                ? 0.05 + Math.random() * 0.10
-                : -(0.05 + Math.random() * 0.10);
-
-            return {
-                id: uniqueId,
-                timestamp: Date.now(),
-                type: 'COMPANY',
-                severity: Math.abs(impact) > 0.10 ? 'HIGH' : Math.abs(impact) > 0.07 ? 'MEDIUM' : 'LOW',
-                headline,
-                symbol: stock.symbol,
-                impact,
-                suggestion: impact > 0.08 ? 'BUY' : impact < -0.08 ? 'SELL' : 'HOLD'
-            };
-        }
-    } else if (random < 0.65) {
-        // Sector news
-        const sectors = Object.keys(SECTOR_NEWS);
-        const sector = sectors[Math.floor(Math.random() * sectors.length)];
-        const templates = SECTOR_NEWS[sector];
+        const stock = stocks[Math.floor(Math.random() * stocks.length)];
+        const symbol = stock.symbol;
+        const templates = COMPANY_NEWS_TEMPLATES[symbol] || [
+            `📢 ${symbol} announces new strategic partnership`,
+            `📊 ${symbol} reports strong quarterly earnings`,
+            `🚀 ${symbol} unveils breakthrough product`,
+            `⚠️ ${symbol} faces regulatory scrutiny`
+        ];
         const headline = templates[Math.floor(Math.random() * templates.length)];
 
-        const isPositive = Math.random() > 0.35;
+        const isPositive = Math.random() > 0.4;
+        // BALANCED: Company impacts (10%-25%)
         const impact = isPositive
-            ? 0.03 + Math.random() * 0.05
-            : -(0.03 + Math.random() * 0.05);
+            ? 0.10 + Math.random() * 0.15
+            : -(0.10 + Math.random() * 0.15);
+
+        return {
+            id: uniqueId,
+            timestamp: Date.now(),
+            type: 'COMPANY',
+            severity: Math.abs(impact) > 0.15 ? 'HIGH' : 'MEDIUM',
+            headline,
+            symbol,
+            impact,
+            suggestion: impact > 0.15 ? 'BUY' : impact < -0.15 ? 'SELL' : 'HOLD'
+        };
+    } else if (random < 0.65) {
+        // Sector news
+        const sectors = ['Tech', 'Finance', 'Healthcare', 'Energy', 'Crypto'];
+        const sector = sectors[Math.floor(Math.random() * sectors.length)];
+        const templates = SECTOR_NEWS[sector] || [`${sector} sector sees increased activity`];
+        const headline = templates[Math.floor(Math.random() * templates.length)];
+
+        const isPositive = Math.random() > 0.4;
+        // BALANCED: Sector impacts (5%-15%)
+        const impact = isPositive
+            ? 0.05 + Math.random() * 0.10
+            : -(0.05 + Math.random() * 0.10);
 
         return {
             id: uniqueId,
             timestamp: Date.now(),
             type: 'SECTOR',
-            severity: 'MEDIUM',
+            severity: Math.abs(impact) > 0.10 ? 'MEDIUM' : 'LOW',
             headline,
             sector,
             impact,
-            suggestion: impact > 0.05 ? 'BUY' : impact < -0.05 ? 'SELL' : 'HOLD'
+            suggestion: impact > 0.08 ? 'BUY' : impact < -0.08 ? 'SELL' : 'HOLD'
         };
     } else if (random < 0.85) {
-        // Market-wide event
-        const event = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
+        // Market-wide event (3%-10%)
+        const marketEvents = [
+            { headline: '📈 Bull Market - Optimism rising', impact: 0.08 },
+            { headline: '📉 Market Correction - Prices cooling off', impact: -0.06 },
+            { headline: '🚀 High Volume - Trading activity surging', impact: 0.05 },
+            { headline: '⚠️ Volatility Warning - Expect swings', impact: -0.04 },
+            { headline: '🌍 Global Markets Rally', impact: 0.07 },
+            { headline: '🏛️ Rate Decision Looming - Caution advised', impact: -0.03 }
+        ];
+        const event = marketEvents[Math.floor(Math.random() * marketEvents.length)];
         return {
             id: uniqueId,
             timestamp: Date.now(),
@@ -188,8 +234,58 @@ export function generateNewsEvent(stocks: Stock[]): NewsEvent | null {
             impact: event.impact
         };
     }
+}
 
-    return null;
+export function generateCryptoNewsEvent(cryptos: any[]): NewsEvent | null {
+    newsIdCounter++;
+    const uniqueId = `crypto-news-${newsIdCounter}-${Date.now()}`;
+    const random = Math.random();
+
+    if (random < 0.7) {
+        // Specific Coin News
+        const crypto = cryptos[Math.floor(Math.random() * cryptos.length)];
+        const symbol = crypto.symbol;
+        const templates = CRYPTO_COIN_NEWS[symbol] || [
+            `🪙 ${symbol} sees massive transaction volume`,
+            `🚀 ${symbol} developers announce new roadmap`,
+            `⚠️ ${symbol} network congestion reported`,
+            `📈 ${symbol} listed on major new exchange`
+        ];
+        const headline = templates[Math.floor(Math.random() * templates.length)];
+
+        const isPositive = Math.random() > 0.45;
+        const impact = isPositive
+            ? 0.08 + Math.random() * 0.12
+            : -(0.08 + Math.random() * 0.12);
+
+        return {
+            id: uniqueId,
+            timestamp: Date.now(),
+            type: 'COMPANY', // Reuse COMPANY type for specific coins to trigger "symbol" logic if needed, or add CRYPTO type
+            severity: Math.abs(impact) > 0.15 ? 'HIGH' : 'MEDIUM',
+            headline,
+            symbol,
+            impact,
+            suggestion: impact > 0.1 ? 'BUY' : impact < -0.1 ? 'SELL' : 'HOLD'
+        };
+    } else {
+        // General Crypto Sector News
+        const templates = SECTOR_NEWS['Crypto'];
+        const headline = templates[Math.floor(Math.random() * templates.length)];
+        const isPositive = Math.random() > 0.5;
+        const impact = isPositive ? 0.05 : -0.05;
+
+        return {
+            id: uniqueId,
+            timestamp: Date.now(),
+            type: 'SECTOR',
+            severity: 'MEDIUM',
+            headline,
+            sector: 'Crypto',
+            impact,
+            suggestion: isPositive ? 'BUY' : 'SELL'
+        };
+    }
 }
 
 /**

@@ -7,6 +7,7 @@ import { Alert } from 'react-native';
 import { ACHIEVEMENT_CATALOG } from '../constants/achievements';
 import { generateDailyChallenges, shouldResetChallenges } from '../utils/dailyChallenges';
 import { analytics } from '../utils/analytics';
+import { useCryptoStore } from './useCryptoStore';
 
 // Error-safe AsyncStorage wrapper
 const asyncStorageWrapper: StateStorage = {
@@ -49,9 +50,13 @@ interface AppState extends AppStateType {
     checkLoginStreak: () => number;
     updateLeaderboard: () => void;
     syncAchievements: () => void;
+    updateMarketPrices: (updates: Record<string, number>) => void;
+    cryptoOnboardingCompleted: boolean;
+    setCryptoOnboardingCompleted: (completed: boolean) => void;
+    lastAchievementCheck: number;
 }
 
-const INITIAL_CASH = 10000;
+const INITIAL_CASH = 1000000;
 
 export const useStore = create<AppState>()(
     persist(
@@ -85,6 +90,10 @@ export const useStore = create<AppState>()(
             equityHistory: [],
             activeNews: null,
             marketSentiment: 0.15,
+            cryptoOnboardingCompleted: false,
+            lastAchievementCheck: 0,
+
+            setCryptoOnboardingCompleted: (completed: boolean) => set({ cryptoOnboardingCompleted: completed }),
 
             // Actions
             setActiveNews: (news) => set({ activeNews: news }),
@@ -117,7 +126,8 @@ export const useStore = create<AppState>()(
             addXp: (amount) => {
                 const { xp, level } = get();
                 const newXp = xp + amount;
-                const nextLevelXp = level * 1000;
+                // Harder XP Curve: 2500 * level
+                const nextLevelXp = level * 2500;
 
                 if (newXp >= nextLevelXp) {
                     set({ xp: newXp, level: level + 1 });
@@ -246,6 +256,26 @@ export const useStore = create<AppState>()(
                 });
             },
 
+            updateMarketPrices: (updates) => {
+                const { stocks } = get();
+                set({
+                    stocks: stocks.map((stock) => {
+                        if (updates[stock.symbol]) {
+                            const newPrice = updates[stock.symbol];
+                            return {
+                                ...stock,
+                                price: newPrice,
+                                history: [
+                                    ...stock.history.slice(-49),
+                                    { timestamp: Date.now(), value: newPrice }
+                                ],
+                            };
+                        }
+                        return stock;
+                    }),
+                });
+            },
+
             setStocks: (stocks) => set({ stocks }),
 
             unlockAchievement: (id) => {
@@ -271,62 +301,98 @@ export const useStore = create<AppState>()(
             },
 
             checkAndUnlockAchievements: () => {
-                const { cash, holdings, stocks, trades, achievements } = get();
+                const { cash, holdings, stocks, trades, achievements, lastAchievementCheck } = get();
+                const now = Date.now();
 
-                const portfolioValue = Object.values(holdings).reduce((total, item) => {
-                    const stock = stocks.find((s) => s.symbol === item.symbol);
-                    if (!stock) return total;
-                    return total + (item.quantity * stock.price);
-                }, 0);
-                const totalEquity = cash + portfolioValue;
+                // Performance Optimization: Debounce check (max once per 2 seconds)
+                // Unless it's a critical milestone check (can be forced if needed, but 2s is fine for UI)
+                if (now - lastAchievementCheck < 2000) {
+                    return;
+                }
+                set({ lastAchievementCheck: now });
 
-                const totalProfit = trades.reduce((sum, trade) => {
-                    if (trade.type === 'SELL' && (trade as any).pnl) {
-                        return sum + (trade as any).pnl;
-                    }
-                    return sum;
-                }, 0);
+                // Use setTimeout to unblock the main thread for UI animations
+                setTimeout(() => {
+                    const portfolioValue = Object.values(holdings).reduce((total, item) => {
+                        const stock = stocks.find((s) => s.symbol === item.symbol);
+                        if (!stock) return total;
+                        return total + (item.quantity * stock.price);
+                    }, 0);
+                    const totalEquity = cash + portfolioValue;
 
-                let winStreak = 0;
-                for (const trade of trades) {
-                    if (trade.type === 'SELL' && (trade as any).pnl) {
-                        if ((trade as any).pnl > 0) {
-                            winStreak++;
-                        } else {
-                            break;
+                    const totalProfit = trades.reduce((sum, trade) => {
+                        if (trade.type === 'SELL' && (trade as any).pnl) {
+                            return sum + (trade as any).pnl;
+                        }
+                        return sum;
+                    }, 0);
+
+                    let winStreak = 0;
+                    // Optimize: Only check last 50 trades for streak if list is huge
+                    const recentTrades = trades.slice(0, 50);
+                    for (const trade of recentTrades) {
+                        if (trade.type === 'SELL' && (trade as any).pnl) {
+                            if ((trade as any).pnl > 0) {
+                                winStreak++;
+                            } else {
+                                break;
+                            }
                         }
                     }
-                }
 
-                const updatedAchievements = achievements.map((ach) => {
-                    let progress = ach.progress;
+                    const updatedAchievements = achievements.map((ach) => {
+                        // Skip if already unlocked to save processing
+                        if (ach.unlocked) return ach;
 
-                    if (['first_trade', 'getting_started', 'day_trader', 'active_investor', 'wall_street_wolf', 'market_maker'].includes(ach.id)) {
-                        progress = trades.length;
-                    }
-                    else if (['in_the_green', 'pocket_change', 'side_hustle', 'salary_match', 'six_figures', 'high_roller', 'tycoon'].includes(ach.id)) {
-                        progress = Math.max(0, totalProfit);
-                    }
-                    else if (['saving_up', '15k_club', '25k_club', '50k_club', '100k_club', 'quarter_mil', 'millionaire'].includes(ach.id)) {
-                        progress = totalEquity;
-                    }
-                    else if (['testing_waters', 'diversified', 'portfolio_master', 'fund_manager', 'index_fund', 'market_owner'].includes(ach.id)) {
-                        progress = Object.keys(holdings).length;
-                    }
-                    else if (['lucky_break', 'hot_streak', 'on_fire', 'trader_pro', 'unstoppable', 'oracle'].includes(ach.id)) {
-                        progress = winStreak;
-                    }
+                        let progress = ach.progress;
 
-                    return { ...ach, progress };
-                });
+                        if (['first_trade', 'getting_started', 'day_trader', 'active_investor', 'wall_street_wolf', 'market_maker'].includes(ach.id)) {
+                            progress = trades.length;
+                        }
+                        else if (['in_the_green', 'pocket_change', 'side_hustle', 'salary_match', 'six_figures', 'high_roller', 'tycoon'].includes(ach.id)) {
+                            progress = Math.max(0, totalProfit);
+                        }
+                        else if (['saving_up', '15k_club', '25k_club', '50k_club', '100k_club', 'quarter_mil', 'millionaire'].includes(ach.id)) {
+                            progress = totalEquity;
+                        }
+                        else if (['testing_waters', 'diversified', 'portfolio_master', 'fund_manager', 'index_fund', 'market_owner'].includes(ach.id)) {
+                            progress = Object.keys(holdings).length;
+                        }
+                        else if (['lucky_break', 'hot_streak', 'on_fire', 'trader_pro', 'unstoppable', 'oracle'].includes(ach.id)) {
+                            progress = winStreak;
+                        }
+                        // Wolf of Wall Street Specials
+                        else if (ach.id === 'fun_coupons') {
+                            // Check max profit in single trade
+                            const maxTradeProfit = trades.reduce((max, t) => Math.max(max, (t as any).pnl || 0), 0);
+                            progress = maxTradeProfit;
+                        }
+                        else if (ach.id === 'pump_numbers') {
+                            // Check trades today
+                            const today = new Date().toDateString();
+                            const tradesToday = trades.filter(t => new Date(t.timestamp).toDateString() === today).length;
+                            progress = tradesToday;
+                        }
 
-                set({ achievements: updatedAchievements });
+                        return { ...ach, progress };
+                    });
 
-                updatedAchievements.forEach((ach) => {
-                    if (!ach.unlocked && ach.progress >= ach.target) {
-                        get().unlockAchievement(ach.id);
+                    // Batch updates to avoid multiple re-renders
+                    let hasUpdates = false;
+                    const finalAchievements = updatedAchievements.map(ach => {
+                        if (!ach.unlocked && ach.progress >= ach.target) {
+                            hasUpdates = true;
+                            // Trigger alert in next tick to avoid freeze
+                            setTimeout(() => get().unlockAchievement(ach.id), 100);
+                            return { ...ach, unlocked: true }; // Optimistic update
+                        }
+                        return ach;
+                    });
+
+                    if (hasUpdates) {
+                        set({ achievements: finalAchievements });
                     }
-                });
+                }, 0);
             },
 
             // Updated for 5-challenge system
@@ -341,15 +407,15 @@ export const useStore = create<AppState>()(
 
                         if (isComplete && !challenge.completed) {
                             // Award XP for completion
-                            get().addXp(challenge.xpReward);
+                            get().addXp(challenge.reward.xp);
 
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             Alert.alert(
                                 '🎉 Challenge Complete!',
-                                `${challenge.title}\n+${challenge.xpReward} XP`,
+                                `${challenge.title}\n+${challenge.reward.xp} XP`,
                                 [{ text: 'Nice!', style: 'default' }]
                             );
-                            analytics.trackChallengeCompleted(challenge.type, { xp: challenge.xpReward });
+                            analytics.trackChallengeCompleted(challenge.type, { xp: challenge.reward.xp });
                         }
 
                         return {
@@ -390,7 +456,7 @@ export const useStore = create<AppState>()(
                     // Award XP for streak challenge
                     const streakChallenge = updatedChallenges.challenges.find(c => c.type === 'streak');
                     if (streakChallenge) {
-                        get().addXp(streakChallenge.xpReward);
+                        get().addXp(streakChallenge.reward.xp);
                     }
 
                     analytics.trackChallengeStarted('daily_challenges_generated');
@@ -486,7 +552,11 @@ export const useStore = create<AppState>()(
                     dailyChallenges: null,
                     xp: 0,
                     level: 1,
+                    cryptoOnboardingCompleted: false,
                 });
+
+                // Reset Crypto Store as well
+                useCryptoStore.getState().reset();
             },
         }),
         {

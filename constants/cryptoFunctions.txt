@@ -1,0 +1,237 @@
+// This file contains crypto trading function implementations for useStore.ts
+// Copy these into the store after the stock trading functions
+
+// 🏦 CRYPTO WALLET TRANSFERS
+transferToCrypto: (amount) => {
+    const { cash, cryptoWallet } = get();
+    if (cash < amount) {
+        Alert.alert('Insufficient Funds', 'Not enough cash to transfer.');
+        return;
+    }
+    set({
+        cash: cash - amount,
+        cryptoWallet: cryptoWallet + amount
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+},
+
+transferFromCrypto: (amount) => {
+    const { cash, cryptoWallet } = get();
+    if (cryptoWallet < amount) {
+        Alert.alert('Insufficient Funds', 'Not enough crypto wallet balance.');
+        return;
+    }
+    set({
+        cash: cash + amount,
+        cryptoWallet: cryptoWallet - amount
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+},
+
+// 💰 BUY CRYPTO WITH LEVERAGE
+buyCrypto: (symbol, quantity, price, leverage) => {
+    const { cryptoWallet, cryptoHoldings } = get();
+    const totalCost = (quantity * price) / leverage; // Leverage reduces capital required
+    
+    if (cryptoWallet < totalCost) {
+        Alert.alert('Insufficient Balance', 'Not enough crypto wallet balance.');
+        return;
+    }
+
+    // Calculate liquidation price for leveraged positions
+    let liquidationPrice: number | undefined;
+    if (leverage > 1) {
+        // Liquidation occurs when loss = initial margin
+        // For long position: liquidationPrice = entryPrice * (1 - 1/leverage)
+        liquidationPrice = price * (1 - 1 / leverage);
+    }
+
+    const existingHolding = cryptoHoldings[symbol];
+    let newHolding: CryptoHolding;
+
+    if (existingHolding) {
+        // Average down the position
+        const totalQuantity = existingHolding.quantity + quantity;
+        const totalCostBasis = (existingHolding.averageCost * existingHolding.quantity) + (price * quantity);
+        newHolding = {
+            symbol,
+            quantity: totalQuantity,
+            averageCost: totalCostBasis / totalQuantity,
+            leverage: Math.max(existingHolding.leverage, leverage), // Use higher leverage
+            liquidationPrice: liquidationPrice || existingHolding.liquidationPrice,
+            entryPrice: price
+        };
+    } else {
+        newHolding = {
+            symbol,
+            quantity,
+            averageCost: price,
+            leverage,
+            liquidationPrice,
+            entryPrice: price
+        };
+    }
+
+    set({
+        cryptoWallet: cryptoWallet - totalCost,
+        cryptoHoldings: {
+            ...cryptoHoldings,
+            [symbol]: newHolding
+        }
+    });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    get().addXp(10);
+    get().checkAndUnlockAchievements();
+    analytics.trackTrade('BUY_CRYPTO', symbol, quantity, price);
+},
+
+// 💸 SELL CRYPTO
+sell
+
+Crypto: (symbol, quantity, price) => {
+    const { cryptoWallet, cryptoHoldings } = get();
+    const currentHolding = cryptoHoldings[symbol];
+
+    if (!currentHolding || currentHolding.quantity < quantity) {
+        Alert.alert('Insufficient Holdings', 'You don\\'t have enough to sell.');
+        return;
+    }
+
+    const newQuantity = currentHolding.quantity - quantity;
+    const profit = (price - currentHolding.averageCost) * quantity;
+    const actualProfit = profit * currentHolding.leverage; // Leverage amplifies P&L
+    const totalValue = (quantity * price) / currentHolding.leverage; // Return initial margin + profit
+
+    const newHoldings = { ...cryptoHoldings };
+    if (newQuantity === 0) {
+        delete newHoldings[symbol];
+    } else {
+        newHoldings[symbol] = {
+            ...currentHolding,
+            quantity: newQuantity
+        };
+    }
+
+    set({
+        cryptoWallet: cryptoWallet + totalValue + actualProfit,
+        cryptoHoldings: newHoldings
+    });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    get().addXp(10);
+    if (actualProfit > 0) {
+        get().addXp(15);
+    }
+    get().checkAndUnlockAchievements();
+    analytics.trackTrade('SELL_CRYPTO', symbol, quantity, price);
+},
+
+// ⚠️ CHECK FOR LIQUIDATIONS
+checkCryptoLiquidation: () => {
+    const { cryptos, cryptoHoldings } = get();
+    const newHoldings = { ...cryptoHoldings };
+    let liquidationOccurred = false;
+
+    Object.keys(cryptoHoldings).forEach(symbol => {
+        const holding = cryptoHoldings[symbol];
+        const crypto = cryptos.find(c => c.symbol === symbol);
+        
+        if (!crypto || !holding.liquidationPrice || holding.leverage === 1) {
+            return;
+        }
+
+        // Check if current price hit liquidation
+        if (crypto.price <= holding.liquidationPrice) {
+            // Position liquidated - lose all margin
+            delete newHoldings[symbol];
+            liquidationOccurred = true;
+            
+            Alert.alert(
+                '⚠️ LIQUIDATED',
+                `Your ${holding.leverage}x leveraged ${symbol} position was liquidated at £${holding.liquidationPrice.toFixed(2)}.`,
+                [{ text: 'OK', style: 'destructive' }]
+            );
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            
+            // Ironically, award XP for getting rekt
+            get().addXp(50);
+            get().unlockAchievement('liquidated');
+        }
+    });
+
+    if (liquidationOccurred) {
+        set({ cryptoHoldings: newHoldings });
+    }
+},
+
+// 📊 UPDATE CRYPTO PRICES (SINGLE)
+updateCryptoPrice: (symbol, newPrice) => {
+    const { cryptos } = get();
+    set({
+        cryptos: cryptos.map((crypto) =>
+            crypto.symbol === symbol
+                ? {
+                    ...crypto,
+                    price: newPrice,
+                    history: [
+                        ...crypto.history.slice(-49),
+                        { timestamp: Date.now(), value: newPrice }
+                    ],
+                }
+                : crypto
+        ),
+    });
+    get().checkCryptoLiquidation();
+},
+
+// 📊 BATCH UPDATE CRYPTO PRICES
+updateCryptoPrices: (priceUpdates: Record<string, number>) => {
+    const { cryptos } = get();
+    const timestamp = Date.now();
+
+    set({
+        cryptos: cryptos.map((crypto) => {
+            const newPrice = priceUpdates[crypto.symbol];
+            if (newPrice !== undefined) {
+                return {
+                    ...crypto,
+                    price: newPrice,
+                    history: [
+                        ...crypto.history.slice(-49),
+                        { timestamp, value: newPrice }
+                    ],
+                };
+            }
+            return crypto;
+        }),
+    });
+    
+    get().checkCryptoLiquidation();
+},
+
+// 🪙 SET CRYPTOS (INITIALIZATION)
+setCryptos: (cryptos) => set({ cryptos }),
+
+// ⚡ BATCH UPDATE STOCK PRICES (needed for existing market engine)
+updateMarketPrices: (priceUpdates: Record<string, number>) => {
+    const { stocks } = get();
+    const timestamp = Date.now();
+
+    set({
+        stocks: stocks.map((stock) => {
+            const newPrice = priceUpdates[stock.symbol];
+            if (newPrice !== undefined) {
+                return {
+                    ...stock,
+                    price: newPrice,
+                    history: [
+                        ...stock.history.slice(-49),
+                        { timestamp, value: newPrice }
+                    ]
+                };
+            }
+            return stock;
+        })
+    });
+},
