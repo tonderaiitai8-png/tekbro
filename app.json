@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.papertrader.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This app does not track you."
+        "NSUserTrackingUsageDescription": "This app does not track you.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -51,9 +52,11 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "4dde2cb9-e88f-4a72-aad1-e1feb475dbc3"
       }
-    }
+    },
+    "owner": "tondev8"
   }
 }
