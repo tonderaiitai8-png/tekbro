@@ -39,7 +39,6 @@ interface CryptoStore {
     cryptos: Crypto[];
     cryptoHoldings: Record<string, CryptoHolding>;
     cryptoTrades: Trade[];
-    fearGreedIndex: number;
 
     // Wallet Actions
     transferToCrypto: (amount: number) => void;
@@ -94,7 +93,6 @@ export const useCryptoStore = create<CryptoStore>()(
             cryptos: [],
             cryptoHoldings: {},
             cryptoTrades: [],
-            fearGreedIndex: 50, // 0-100 (50 = neutral)
 
             // 🏦 WALLET TRANSFERS
             transferToCrypto: (amount) => {
@@ -209,20 +207,17 @@ export const useCryptoStore = create<CryptoStore>()(
 
                 const newQuantity = currentHolding.quantity - quantity;
 
-                // FIXED LEVERAGE MATH:
-                // Calculate raw P&L (what you'd make without leverage)
+                // LEVERAGE MATH (ACTUALLY FIXED):
+                // rawProfit is already the profit on the full leveraged position
+                // (e.g., bought £100k worth with £10k margin, sold for £105k = £5k profit)
+                // Multiplying by leverage again would give £50k profit which is wrong!
                 const costBasis = currentHolding.averageCost * quantity;
                 const saleValue = price * quantity;
-                const rawProfit = saleValue - costBasis;
+                const profit = saleValue - costBasis; // THIS is the actual profit (already leveraged)
 
-                // Apply leverage to P&L ONLY
-                const leveragedProfit = rawProfit * currentHolding.leverage;
-
-                // Initial margin was: (avgCost * quantity) / leverage
+                // Return initial margin + profit (NOT profit * leverage!)
                 const initialMargin = costBasis / currentHolding.leverage;
-
-                // Total return = margin back + leveraged profit
-                const totalReturn = initialMargin + leveragedProfit;
+                const totalReturn = initialMargin + profit;
 
                 const newHoldings = { ...cryptoHoldings };
                 if (newQuantity === 0) {
@@ -245,7 +240,7 @@ export const useCryptoStore = create<CryptoStore>()(
                             quantity,
                             price,
                             timestamp: Date.now(),
-                            pnl: leveragedProfit
+                            pnl: profit
                         },
                         ...cryptoTrades
                     ]
@@ -253,15 +248,15 @@ export const useCryptoStore = create<CryptoStore>()(
 
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 addXp(10);
-                if (leveragedProfit > 0) {
+                if (profit > 0) {
                     addXp(15);
-                    updateChallengeProgress('profit', leveragedProfit);
+                    updateChallengeProgress('profit', profit);
                 } else {
                     addXp(5);
                 }
                 updateChallengeProgress('volume', 1);
                 checkAndUnlockAchievements();
-                analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit: leveragedProfit });
+                analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit: profit });
             },
 
             // ⚠️ CHECK FOR LIQUIDATIONS
@@ -366,7 +361,6 @@ export const useCryptoStore = create<CryptoStore>()(
                     cryptos: [],
                     cryptoHoldings: {},
                     cryptoTrades: [],
-                    fearGreedIndex: 50
                 });
             },
         }),
