@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useStore } from '../store/useStore';
+import { useMarketMoodStore } from '../store/useMarketMoodStore';
 import { initializeStocks, STOCK_CATALOG } from '../constants/stockData';
 import { generateNewsEvent } from '../utils/NewsEngine';
 
@@ -31,6 +32,15 @@ export const useMarketEngine = () => {
         updateMarketPrices,
         setActiveNews,
     } = useStore();
+
+    const {
+        fearGreedIndex,
+        marketCyclePhase,
+        getSectorMultiplier,
+        updateMood,
+        tick,
+        checkCycleTransition
+    } = useMarketMoodStore();
 
     const lastNewsTimeRef = useRef(Date.now());
 
@@ -89,9 +99,13 @@ export const useMarketEngine = () => {
                 const volatility = (baseStock?.volatility || 1.0) * 0.008; // Base volatility scaling
                 const noise = boxMullerRandom() * volatility;
 
+                // 2. Get mood and sector biases
+                const moodDirectionBias = (fearGreedIndex - 50) / 5000; // ±0.01 max
+                const sectorBias = getSectorMultiplier(stock.sector as any, marketCyclePhase);
+
                 // 3. Calculate Final Move
-                // Move = Drift + Noise
-                const percentChange = currentDrift + noise;
+                // Move = Drift + Noise + Mood Bias + Sector Bias
+                const percentChange = currentDrift + noise + moodDirectionBias + sectorBias;
 
                 // 4. Update Price
                 let newPrice = stock.price * (1 + percentChange);
@@ -106,20 +120,78 @@ export const useMarketEngine = () => {
 
             updateMarketPrices(priceUpdates);
 
-            // 🌡️ UPDATE MARKET SENTIMENT (Temperament Meter)
-            // Calculate average drift to determine overall market mood
-            const totalDrift = Object.values(driftRef.current).reduce((sum, val) => sum + val, 0);
-            const avgDrift = totalDrift / currentStocks.length;
+            // 🌡️ UPDATE MARKET MOOD (Feed data to central mood store)
+            const stocksAboveMA = currentStocks.filter(s => {
+                // Simple check: is current price above recent average?
+                const recentPrices = s.history.slice(-10).map(h => h.value);
+                const avg = recentPrices.reduce((sum, p) => sum + p, 0) / recentPrices.length;
+                return s.price > avg;
+            }).length;
 
-            // Normalize drift to 0-100 scale (0 = Extreme Fear, 100 = Extreme Greed)
-            // Typical drift is +/- 0.002. Let's scale it up.
-            let sentiment = 50 + (avgDrift * 10000);
+            // Calculate new highs/lows (stocks within 2% of recent extremes)
+            let newHighs = 0;
+            let newLows = 0;
+            let risingVol = 0;
+            let fallingVol = 0;
+            let totalVol = 0;
 
-            // Clamp
-            sentiment = Math.max(0, Math.min(100, sentiment));
+            currentStocks.forEach(s => {
+                const recentPrices = s.history.slice(-50).map(h => h.value);
+                const max = Math.max(...recentPrices);
+                const min = Math.min(...recentPrices);
 
-            // Update store (throttled to avoid excessive re-renders, but here we do it every tick for smoothness)
-            useStore.getState().setMarketSentiment(sentiment);
+                if (s.price >= max * 0.98) newHighs++;
+                if (s.price <= min * 1.02) newLows++;
+
+                // Track volume by direction
+                const prevPrice = s.history.length > 1 ? s.history[s.history.length - 2].value : s.price;
+                const isRising = s.price > prevPrice;
+                const vol = Math.abs(s.price - prevPrice) * 1000; // Simplified volume
+
+                totalVol += vol;
+                if (isRising) risingVol += vol;
+                else fallingVol += vol;
+            });
+
+            // Calculate average volatility
+            const volatilities = currentStocks.map(s => {
+                const baseStock = STOCK_CATALOG.find(bs => bs.symbol === s.symbol);
+                return (baseStock?.volatility || 1.0) * 100;
+            });
+            const avgVol = volatilities.reduce((sum, v) => sum + v, 0) / volatilities.length;
+
+            // Get cash percentage from main store
+            const { cash, holdings } = useStore.getState();
+            const totalEquity = cash + Object.values(holdings).reduce((sum, h) => {
+                const stock = currentStocks.find(s => s.symbol === h.symbol);
+                return sum + (stock ? h.quantity * stock.price : 0);
+            }, 0);
+            const cashPct = totalEquity > 0 ? cash / totalEquity : 0.5;
+
+            // Update mood store with all metrics
+            updateMood({
+                stocksAboveMA,
+                totalStocks: currentStocks.length,
+                newHighs,
+                newLows,
+                risingVolume: risingVol,
+                fallingVolume: fallingVol,
+                averageVolatility: avgVol,
+                cashPercentage: cashPct
+            });
+
+            // Increment tick counter
+            tick();
+
+            // Check for market cycle transitions (every 300 ticks)
+            const returns = currentStocks.map(s => {
+                const history = s.history.slice(-50);
+                if (history.length < 2) return 0;
+                const oldPrice = history[0].value;
+                return (s.price - oldPrice) / oldPrice;
+            });
+            const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+            checkCycleTransition(avgReturn);
 
         }, 3000); // 3 second tick (Throttled for performance)
 
