@@ -20,9 +20,10 @@ const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 
 interface Props {
     achievements: Achievement[];
+    onAchievementPress?: (achievement: Achievement) => void;
 }
 
-export function AchievementGrid({ achievements }: Props) {
+export function AchievementGrid({ achievements, onAchievementPress }: Props) {
     const scrollX = useSharedValue(0);
 
     const scrollHandler = useAnimatedScrollHandler({
@@ -42,6 +43,9 @@ export function AchievementGrid({ achievements }: Props) {
 
     const handlePress = (achievement: Achievement) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (onAchievementPress) {
+            onAchievementPress(achievement);
+        }
     };
 
     const renderItem = ({ item, index }: { item: Achievement; index: number }) => {

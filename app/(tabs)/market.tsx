@@ -133,8 +133,8 @@ export default function MarketScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
+            {renderHeader()}
             <FlashList
-                ListHeaderComponent={renderHeader}
                 data={filteredStocks}
                 keyExtractor={(item: any) => item.symbol}
                 renderItem={renderStockCard}

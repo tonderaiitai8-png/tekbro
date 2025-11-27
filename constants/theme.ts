@@ -7,6 +7,7 @@ export const DARK_THEME = {
     bgElevated: '#0A0A0A',
     bgSubtle: '#141414',
     card: '#111111', // Slightly lighter than bgElevated for cards
+    cardHighlight: '#1A1A1A',
 
     // Borders - Subtle, refined
     border: '#1F1F1F',
@@ -35,6 +36,7 @@ export const DARK_THEME = {
 
     negative: '#EF4444', // Red-500
     negativeSubtle: '#EF444410',
+    error: '#EF4444', // Alias
 
     warning: '#F59E0B', // Amber-500
     warningSubtle: '#F59E0B10',
@@ -53,6 +55,7 @@ export const LIGHT_THEME = {
     bgElevated: '#FAFAFA',
     bgSubtle: '#F5F5F5',
     card: '#FFFFFF',
+    cardHighlight: '#F0F0F0',
 
     // Borders
     border: '#E5E5E5',
@@ -81,6 +84,7 @@ export const LIGHT_THEME = {
 
     negative: '#DC2626',
     negativeSubtle: '#DC262610',
+    error: '#DC2626',
 
     warning: '#D97706',
     warningSubtle: '#D9770610',

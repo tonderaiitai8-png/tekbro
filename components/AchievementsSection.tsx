@@ -1,25 +1,41 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, SectionList, SafeAreaView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, SectionList, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Achievement } from '../types';
 import { AchievementGrid } from './AchievementGrid';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
-import { X, Trophy, Search } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
+import { X, Trophy } from 'lucide-react-native';
 import { AchievementCardSkeleton } from './LoadingSkeleton';
+import { AchievementDetailModal } from './AchievementDetailModal';
+import * as Haptics from 'expo-haptics';
 
 interface Props {
     achievements: Achievement[];
 }
 
-export function AchievementsSection({ achievements }: Props) {
-    const [modalVisible, setModalVisible] = useState(false);
+export const AchievementsSection = React.memo(function AchievementsSection({ achievements }: Props) {
+    const [viewAllVisible, setViewAllVisible] = useState(false);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+
+    const categories = ['All', 'Trading', 'Portfolio', 'Social', 'Milestones'];
+
+    const filteredAchievements = React.useMemo(() => {
+        if (selectedCategory === 'All') return achievements;
+        return achievements.filter(a => a.category === selectedCategory);
+    }, [achievements, selectedCategory]);
+
+    const handleAchievementPress = useCallback((achievement: Achievement) => {
+        setSelectedAchievement(achievement);
+        setDetailModalVisible(true);
+    }, []);
 
     const unlockedCount = achievements.filter(a => a.unlocked).length;
     const totalCount = achievements.length;
 
     // Group by Tier
-    const sections = [
+    const sections = React.useMemo(() => [
         {
             title: 'Gold Tier 🏆',
             data: achievements.filter(a => a.tier === 'gold'),
@@ -35,7 +51,7 @@ export function AchievementsSection({ achievements }: Props) {
             data: achievements.filter(a => a.tier === 'bronze'),
             color: '#A16207'
         }
-    ];
+    ], [achievements]);
 
     return (
         <View style={styles.container}>
@@ -46,10 +62,39 @@ export function AchievementsSection({ achievements }: Props) {
                         <Text style={styles.badgeText}>{unlockedCount}/{totalCount}</Text>
                     </View>
                 </View>
-                <TouchableOpacity onPress={() => setModalVisible(true)}>
+                <TouchableOpacity onPress={() => setViewAllVisible(true)}>
                     <Text style={styles.seeAll}>View All</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Category Filters */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterContainer}
+                style={styles.filterScroll}
+            >
+                {categories.map(cat => (
+                    <TouchableOpacity
+                        key={cat}
+                        onPress={() => {
+                            Haptics.selectionAsync();
+                            setSelectedCategory(cat);
+                        }}
+                        style={[
+                            styles.filterPill,
+                            selectedCategory === cat && styles.filterPillActive
+                        ]}
+                    >
+                        <Text style={[
+                            styles.filterText,
+                            selectedCategory === cat && styles.filterTextActive
+                        ]}>
+                            {cat}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
 
             {achievements.length === 0 ? (
                 <View style={{ flexDirection: 'row', gap: SPACING.md, paddingHorizontal: SPACING.lg }}>
@@ -58,14 +103,17 @@ export function AchievementsSection({ achievements }: Props) {
                     <AchievementCardSkeleton />
                 </View>
             ) : (
-                <AchievementGrid achievements={achievements} />
+                <AchievementGrid
+                    achievements={filteredAchievements}
+                    onAchievementPress={handleAchievementPress}
+                />
             )}
 
             <Modal
-                visible={modalVisible}
+                visible={viewAllVisible}
                 animationType="slide"
                 presentationStyle="pageSheet"
-                onRequestClose={() => setModalVisible(false)}
+                onRequestClose={() => setViewAllVisible(false)}
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
@@ -80,7 +128,7 @@ export function AchievementsSection({ achievements }: Props) {
                                 </View>
                             </View>
                             <TouchableOpacity
-                                onPress={() => setModalVisible(false)}
+                                onPress={() => setViewAllVisible(false)}
                                 style={styles.closeButton}
                             >
                                 <X size={24} color={COLORS.text} />
@@ -111,7 +159,11 @@ export function AchievementsSection({ achievements }: Props) {
                             </View>
                         )}
                         renderItem={({ item }) => (
-                            <View style={[styles.card, !item.unlocked && styles.cardLocked]}>
+                            <TouchableOpacity
+                                style={[styles.card, !item.unlocked && styles.cardLocked]}
+                                onPress={() => handleAchievementPress(item)}
+                                activeOpacity={0.7}
+                            >
                                 {item.unlocked ? (
                                     <LinearGradient
                                         colors={['#000000', '#003300']} // Black to Deep Green
@@ -157,14 +209,20 @@ export function AchievementsSection({ achievements }: Props) {
                                         </View>
                                     )}
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         )}
                     />
                 </View>
             </Modal>
+
+            <AchievementDetailModal
+                visible={detailModalVisible}
+                onClose={() => setDetailModalVisible(false)}
+                achievement={selectedAchievement}
+            />
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -355,5 +413,33 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: COLORS.textMuted,
         fontFamily: FONTS.medium,
+    },
+    filterScroll: {
+        marginBottom: SPACING.md,
+    },
+    filterContainer: {
+        paddingHorizontal: SPACING.lg,
+        gap: 8,
+    },
+    filterPill: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: COLORS.bgElevated,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    filterPillActive: {
+        backgroundColor: COLORS.accent,
+        borderColor: COLORS.accent,
+    },
+    filterText: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        fontFamily: FONTS.medium,
+    },
+    filterTextActive: {
+        color: '#000',
+        fontFamily: FONTS.bold,
     },
 });

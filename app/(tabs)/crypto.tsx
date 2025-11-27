@@ -145,8 +145,7 @@ export default function CryptoScreen() {
                 showsVerticalScrollIndicator={false}
                 estimatedItemSize={140}
             />
-            estimatedItemSize={140}
-            />
+
 
             <TransferModal
                 visible={transferModalVisible}

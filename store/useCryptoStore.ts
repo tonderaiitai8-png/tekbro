@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Crypto, CryptoHolding } from '../types';
+import { Crypto, CryptoHolding, Trade } from '../types';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { analytics } from '../utils/analytics';
@@ -38,6 +38,7 @@ interface CryptoStore {
     cryptoWallet: number;
     cryptos: Crypto[];
     cryptoHoldings: Record<string, CryptoHolding>;
+    cryptoTrades: Trade[];
     fearGreedIndex: number;
 
     // Wallet Actions
@@ -64,17 +65,23 @@ let getMainStoreCash: () => number = () => 0;
 let setMainStoreCash: (amount: number) => void = () => { };
 let addXp: (amount: number) => void = () => { };
 let unlockAchievement: (id: string) => void = () => { };
+let checkAndUnlockAchievements: () => void = () => { };
+let updateChallengeProgress: (type: string, amount: number) => void = () => { };
 
 export const setMainStoreHelpers = (
     getCash: () => number,
     setCash: (amount: number) => void,
     addXpFn: (amount: number) => void,
-    unlockAch: (id: string) => void
+    unlockAch: (id: string) => void,
+    checkAch: () => void,
+    updateChallenge: (type: string, amount: number) => void
 ) => {
     getMainStoreCash = getCash;
     setMainStoreCash = setCash;
     addXp = addXpFn;
     unlockAchievement = unlockAch;
+    checkAndUnlockAchievements = checkAch;
+    updateChallengeProgress = updateChallenge;
 };
 
 const INITIAL_CRYPTO_WALLET = 10000;
@@ -86,6 +93,7 @@ export const useCryptoStore = create<CryptoStore>()(
             cryptoWallet: INITIAL_CRYPTO_WALLET,
             cryptos: [],
             cryptoHoldings: {},
+            cryptoTrades: [],
             fearGreedIndex: 50, // 0-100 (50 = neutral)
 
             // 🏦 WALLET TRANSFERS
@@ -121,7 +129,7 @@ export const useCryptoStore = create<CryptoStore>()(
 
             // 💰 BUY CRYPTO WITH LEVERAGE
             buyCrypto: (symbol, quantity, price, leverage) => {
-                const { cryptoWallet, cryptoHoldings } = get();
+                const { cryptoWallet, cryptoHoldings, cryptoTrades } = get();
                 const totalCost = (quantity * price) / leverage; // Leverage reduces capital required
 
                 if (cryptoWallet < totalCost) {
@@ -168,17 +176,30 @@ export const useCryptoStore = create<CryptoStore>()(
                     cryptoHoldings: {
                         ...cryptoHoldings,
                         [symbol]: newHolding
-                    }
+                    },
+                    cryptoTrades: [
+                        {
+                            id: Date.now().toString(),
+                            symbol,
+                            type: 'BUY',
+                            quantity,
+                            price,
+                            timestamp: Date.now(),
+                        },
+                        ...cryptoTrades
+                    ]
                 });
 
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 addXp(10);
+                updateChallengeProgress('volume', 1); // Count as a trade
+                checkAndUnlockAchievements();
                 analytics.trackEvent('crypto_buy', { symbol, quantity, price, leverage });
             },
 
             // 💸 SELL CRYPTO
             sellCrypto: (symbol, quantity, price) => {
-                const { cryptoWallet, cryptoHoldings } = get();
+                const { cryptoWallet, cryptoHoldings, cryptoTrades } = get();
                 const currentHolding = cryptoHoldings[symbol];
 
                 if (!currentHolding || currentHolding.quantity < quantity) {
@@ -203,14 +224,31 @@ export const useCryptoStore = create<CryptoStore>()(
 
                 set({
                     cryptoWallet: cryptoWallet + totalValue + actualProfit,
-                    cryptoHoldings: newHoldings
+                    cryptoHoldings: newHoldings,
+                    cryptoTrades: [
+                        {
+                            id: Date.now().toString(),
+                            symbol,
+                            type: 'SELL',
+                            quantity,
+                            price,
+                            timestamp: Date.now(),
+                            pnl: actualProfit
+                        },
+                        ...cryptoTrades
+                    ]
                 });
 
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 addXp(10);
                 if (actualProfit > 0) {
                     addXp(15);
+                    updateChallengeProgress('profit', actualProfit);
+                } else {
+                    addXp(5);
                 }
+                updateChallengeProgress('volume', 1);
+                checkAndUnlockAchievements();
                 analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit: actualProfit });
             },
 
@@ -315,6 +353,7 @@ export const useCryptoStore = create<CryptoStore>()(
                     cryptoWallet: INITIAL_CRYPTO_WALLET,
                     cryptos: [],
                     cryptoHoldings: {},
+                    cryptoTrades: [],
                     fearGreedIndex: 50
                 });
             },

@@ -15,6 +15,9 @@ import { Header } from '../../components/Header';
 import { MetricCard } from '../../components/MetricCard';
 import { MetricDetailModal } from '../../components/MetricDetailModal';
 import { AchievementsSection } from '../../components/AchievementsSection';
+import { AssetTabs } from '../../components/AssetTabs';
+import { EmptyPortfolioState } from '../../components/EmptyPortfolioState';
+import { QuickStats } from '../../components/QuickStats';
 import { COLORS, SPACING, FONTS, RADIUS } from '../../constants/theme';
 import { AppBackground } from '../../components/AppBackground';
 
@@ -23,6 +26,7 @@ export default function PortfolioScreen() {
     const stocks = useStore(state => state.stocks);
     const cash = useStore(state => state.cash);
     const holdings = useStore(state => state.holdings);
+    const trades = useStore(state => state.trades);
     const xp = useStore(state => state.xp);
     const level = useStore(state => state.level);
     const loginStreak = useStore(state => state.loginStreak);
@@ -31,22 +35,27 @@ export default function PortfolioScreen() {
     const username = useStore(state => state.username);
     const reset = useStore(state => state.reset);
     const checkLoginStreak = useStore(state => state.checkLoginStreak);
-    const router = useRouter(); // Use router for navigation
+    const syncAchievements = useStore(state => state.syncAchievements);
+    const equityHistory = useStore(state => state.equityHistory);
+    const router = useRouter();
 
     // Crypto Store
     const {
         cryptoWallet,
         cryptos,
         cryptoHoldings,
+        cryptoTrades,
         getTotalCryptoValue
     } = useCryptoStore();
 
     useEffect(() => {
         checkLoginStreak();
+        syncAchievements();
     }, []);
     const FlashListAny = FlashList as any;
 
     const [activeModal, setActiveModal] = useState<'netWorth' | 'buyingPower' | null>(null);
+    const [activeTab, setActiveTab] = useState('All');
     const [refreshing, setRefreshing] = useState(false);
 
     // Calculate total equity (Stocks + Crypto + Cash + Crypto Wallet)
@@ -60,6 +69,50 @@ export default function PortfolioScreen() {
     const cryptoValue = getTotalCryptoValue();
     const totalEquity = cash + stockValue + cryptoWallet + cryptoValue;
 
+    // Calculate performance stats for net worth modal
+    const INITIAL_CAPITAL = 1000000;
+    const allTimePnL = totalEquity - INITIAL_CAPITAL;
+    const allTimePnLPercent = (allTimePnL / INITIAL_CAPITAL) * 100;
+
+    // Calculate Daily Change
+    const { dailyChange, dailyChangePercent } = React.useMemo(() => {
+        if (!equityHistory || equityHistory.length === 0) {
+            return { dailyChange: 0, dailyChangePercent: 0 };
+        }
+
+        const now = Date.now();
+        const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+        // Find the history point closest to 24h ago
+        // Since history is sorted by time, we can find the first entry >= oneDayAgo
+        // Or just take the oldest if all are recent
+        let previousEquity = INITIAL_CAPITAL; // Default to initial if no history
+
+        // Find the first entry that is at least 24h old, or the oldest one available
+        const pastEntry = equityHistory.find(entry => entry.timestamp >= oneDayAgo);
+
+        if (pastEntry) {
+            // If we found an entry within the last 24h, we actually want the one BEFORE it
+            // But simpler logic: just take the oldest entry in the last 24h window?
+            // Actually, we want the value from ~24h ago.
+            // If we have history: [oldest, ..., newest]
+            // We want the entry closest to 24h ago.
+
+            // Let's just take the first entry in the array if it's older than 24h?
+            // No, equityHistory is sliced to last 50 entries.
+            // Let's assume the oldest entry in the history buffer is the best reference for "start of period"
+            previousEquity = equityHistory[0].value;
+        } else if (equityHistory.length > 0) {
+            previousEquity = equityHistory[0].value;
+        }
+
+        const change = totalEquity - previousEquity;
+        const percent = previousEquity > 0 ? (change / previousEquity) * 100 : 0;
+
+        return { dailyChange: change, dailyChangePercent: percent };
+    }, [equityHistory, totalEquity]);
+
+
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -70,74 +123,57 @@ export default function PortfolioScreen() {
 
     // Filter stocks: Owned OR Watched
     const allAssets = React.useMemo(() => {
-        // 1. Get relevant stocks
-        const relevantStocks = stocks.filter(stock => {
-            const isOwned = holdings[stock.symbol]?.quantity > 0;
-            const isWatched = watchlist.includes(stock.symbol);
-            return isOwned || isWatched;
-        });
+        let assets: any[] = [];
 
-        // 2. Get owned cryptos (we don't have a crypto watchlist yet, so just owned)
-        const ownedCryptos = cryptos.filter(crypto => {
-            return cryptoHoldings[crypto.symbol]?.quantity > 0;
-        });
+        // Helper to check ownership
+        const isOwnedStock = (symbol: string) => holdings[symbol]?.quantity > 0;
+        const isOwnedCrypto = (symbol: string) => cryptoHoldings[symbol]?.quantity > 0;
+        const isWatched = (symbol: string) => watchlist.includes(symbol);
 
-        // 3. Combine and sort by value (owned first, then by value)
-        const combined = [...relevantStocks, ...ownedCryptos];
+        if (activeTab === 'All') {
+            // Show all OWNED assets (Stocks + Crypto)
+            const ownedStocks = stocks.filter(s => isOwnedStock(s.symbol));
+            const ownedCryptos = cryptos.filter(c => isOwnedCrypto(c.symbol));
+            assets = [...ownedStocks, ...ownedCryptos];
+        } else if (activeTab === 'Stocks') {
+            // Show OWNED stocks only
+            assets = stocks.filter(s => isOwnedStock(s.symbol));
+        } else if (activeTab === 'Crypto') {
+            // Show OWNED crypto only
+            assets = cryptos.filter(c => isOwnedCrypto(c.symbol));
+        } else if (activeTab === 'Watchlist') {
+            // Show WATCHED stocks (regardless of ownership)
+            assets = stocks.filter(s => isWatched(s.symbol));
+        }
 
-        return combined.sort((a, b) => {
-            // Determine ownership and value for A
-            const aIsStock = 'description' in a && !('logo' in a); // Simple check, or use 'logo' check
-            // Actually, Crypto has 'logo', Stock doesn't (in our current types, Stock has 'sector' maybe? let's check types if needed, but 'logo' is a safe bet for Crypto)
-            const aIsCrypto = 'logo' in a;
+        // Sort Logic
+        return assets.sort((a, b) => {
+            // Always sort by value descending for owned assets
+            // For watchlist, maybe sort by symbol or price change?
+            // For now, consistent value sort (even if 0 value for watchlist items not owned)
 
-            let aOwned = false;
-            let aValue = 0;
-
-            if (aIsCrypto) {
-                const holding = cryptoHoldings[a.symbol];
-                if (holding && holding.quantity > 0) {
-                    aOwned = true;
-                    aValue = holding.quantity * a.price;
+            const getValue = (item: any) => {
+                if ('logo' in item) { // Crypto
+                    const holding = cryptoHoldings[item.symbol];
+                    return holding ? holding.quantity * item.price : 0;
+                } else { // Stock
+                    const holding = holdings[item.symbol];
+                    return holding ? holding.quantity * item.price : 0;
                 }
-            } else {
-                const holding = holdings[a.symbol];
-                if (holding && holding.quantity > 0) {
-                    aOwned = true;
-                    aValue = holding.quantity * a.price;
-                }
+            };
+
+            const valA = getValue(a);
+            const valB = getValue(b);
+
+            // If both have value, sort by value desc
+            if (valA > 0 || valB > 0) {
+                return valB - valA;
             }
 
-            // Determine ownership and value for B
-            const bIsCrypto = 'logo' in b;
-            let bOwned = false;
-            let bValue = 0;
-
-            if (bIsCrypto) {
-                const holding = cryptoHoldings[b.symbol];
-                if (holding && holding.quantity > 0) {
-                    bOwned = true;
-                    bValue = holding.quantity * b.price;
-                }
-            } else {
-                const holding = holdings[b.symbol];
-                if (holding && holding.quantity > 0) {
-                    bOwned = true;
-                    bValue = holding.quantity * b.price;
-                }
-            }
-
-            // Sort Logic: Owned first, then by Value Descending
-            if (aOwned && !bOwned) return -1;
-            if (!aOwned && bOwned) return 1;
-
-            if (aOwned && bOwned) {
-                return bValue - aValue; // Higher value first
-            }
-
-            return 0; // Both not owned (watched), keep original order or sort by name?
+            // Fallback to name/symbol
+            return a.symbol.localeCompare(b.symbol);
         });
-    }, [stocks, holdings, watchlist, cryptos, cryptoHoldings]);
+    }, [stocks, holdings, watchlist, cryptos, cryptoHoldings, activeTab]);
 
     const renderItem = useCallback(({ item }: { item: any }) => {
         if ('logo' in item) {
@@ -149,7 +185,7 @@ export default function PortfolioScreen() {
     const handleReset = () => {
         Alert.alert(
             "Reset Game?",
-            "This will wipe all progress and start over with £500k. Are you sure?",
+            "This will wipe all progress and start over with £1M. Are you sure?",
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -157,7 +193,6 @@ export default function PortfolioScreen() {
                     style: "destructive",
                     onPress: async () => {
                         reset();
-                        // Force onboarding flag clear
                         await AsyncStorage.removeItem('onboarding_completed');
                         router.replace('/onboarding');
                     }
@@ -212,16 +247,27 @@ export default function PortfolioScreen() {
                                         />
                                     </View>
 
+                                    <QuickStats />
+
                                     <AchievementsSection achievements={achievements} />
 
                                     <View style={styles.sectionHeader}>
                                         <View>
                                             <Text style={styles.sectionTitle}>Your Assets</Text>
                                             <Text style={styles.sectionSubtitle}>
-                                                {Object.keys(holdings).length + Object.keys(cryptoHoldings).length} Owned • {watchlist.length} Watched
+                                                {activeTab === 'Watchlist'
+                                                    ? `${allAssets.length} Watched`
+                                                    : `${allAssets.length} Owned`
+                                                }
                                             </Text>
                                         </View>
                                     </View>
+
+                                    <AssetTabs
+                                        tabs={['All', 'Stocks', 'Crypto', 'Watchlist']}
+                                        activeTab={activeTab}
+                                        onTabChange={setActiveTab}
+                                    />
                                 </View>
                             }
                             data={allAssets}
@@ -239,10 +285,7 @@ export default function PortfolioScreen() {
                             }
                             showsVerticalScrollIndicator={false}
                             ListEmptyComponent={
-                                <View style={styles.emptyState}>
-                                    <Text style={styles.emptyText}>No assets owned or watched yet.</Text>
-                                    <Text style={styles.emptySubtext}>Visit the Market or Crypto tab to start trading!</Text>
-                                </View>
+                                <EmptyPortfolioState activeTab={activeTab} />
                             }
                         />
                     )}
@@ -256,6 +299,7 @@ export default function PortfolioScreen() {
                     value={`£${cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     description="This is your available cash balance. You can use this to buy new stocks. Selling stocks will increase this balance."
                     type="buyingPower"
+                    transactions={[...trades, ...cryptoTrades].sort((a, b) => b.timestamp - a.timestamp)}
                 />
 
                 <MetricDetailModal
@@ -265,6 +309,17 @@ export default function PortfolioScreen() {
                     value={`£${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     description="Your total financial value. This includes your available cash plus the current market value of all stocks you own."
                     type="netWorth"
+                    breakdown={{
+                        cash: cash + cryptoWallet,
+                        stocks: stockValue,
+                        crypto: cryptoValue
+                    }}
+                    performance={{
+                        dailyChange,
+                        dailyChangePercent,
+                        allTimePnL,
+                        allTimePnLPercent
+                    }}
                 />
             </SafeAreaView>
         </AppBackground>
@@ -274,7 +329,6 @@ export default function PortfolioScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        // backgroundColor: COLORS.background, // REMOVED
     },
     content: {
         flex: 1,
@@ -326,31 +380,4 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: FONTS.regular,
     },
-    debugButton: {
-        margin: SPACING.xl,
-        padding: SPACING.md,
-        backgroundColor: COLORS.bgElevated,
-        borderRadius: RADIUS.md,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    debugText: {
-        color: COLORS.warning,
-        fontFamily: FONTS.bold,
-        fontSize: 14,
-    },
-    testButton: {
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        backgroundColor: 'rgba(0, 255, 255, 0.1)',
-        borderRadius: RADIUS.sm,
-        borderWidth: 1,
-        borderColor: COLORS.accent,
-    },
-    testButtonText: {
-        color: COLORS.accent,
-        fontSize: 10,
-        fontFamily: FONTS.bold,
-    }
 });

@@ -166,6 +166,19 @@ export default function StockDetailScreen() {
                     </View>
 
                     <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>52-Week Range</Text>
+                        <View style={styles.rangeContainer}>
+                            <Text style={[styles.rangeValue, { color: COLORS.negative }]}>
+                                £{Math.min(...stock.history.map(h => h.value)).toFixed(2)}
+                            </Text>
+                            <Text style={styles.rangeSeparator}>—</Text>
+                            <Text style={[styles.rangeValue, { color: COLORS.positive }]}>
+                                £{Math.max(...stock.history.map(h => h.value)).toFixed(2)}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.statItem}>
                         <Text style={styles.statLabel}>Sector</Text>
                         <View style={styles.sectorBadge}>
                             <Text style={styles.sectorText}>{stock.sector}</Text>
@@ -173,11 +186,20 @@ export default function StockDetailScreen() {
                     </View>
 
                     {ownedShares > 0 && (
-                        <View style={[styles.statItem, styles.ownedCard]}>
-                            <Text style={styles.statLabel}>Your Position</Text>
-                            <Text style={styles.statValue}>{ownedShares} shares</Text>
-                            <Text style={styles.ownedValue}>£{ownedValue.toFixed(2)}</Text>
-                        </View>
+                        <>
+                            <View style={[styles.statItem, styles.ownedCard]}>
+                                <Text style={styles.statLabel}>Your Position</Text>
+                                <Text style={styles.statValue}>{ownedShares} shares</Text>
+                                <Text style={styles.ownedValue}>£{ownedValue.toFixed(2)}</Text>
+                            </View>
+                            <View style={[styles.statItem, styles.ownedCard]}>
+                                <Text style={styles.statLabel}>Average Cost</Text>
+                                <Text style={styles.statValue}>£{averageCost.toFixed(2)}</Text>
+                                <Text style={[styles.ownedValue, { color: stock.price >= averageCost ? COLORS.positive : COLORS.negative }]}>
+                                    {stock.price >= averageCost ? '+' : ''}{((stock.price - averageCost) / averageCost * 100).toFixed(2)}%
+                                </Text>
+                            </View>
+                        </>
                     )}
                 </View>
             </ScrollView>
@@ -351,6 +373,22 @@ const styles = StyleSheet.create({
         color: COLORS.accent,
         fontFamily: FONTS.medium,
         marginTop: SPACING.xs,
+    },
+    rangeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.sm,
+        marginTop: SPACING.xs,
+    },
+    rangeValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        fontFamily: FONTS.bold,
+    },
+    rangeSeparator: {
+        fontSize: 16,
+        color: COLORS.textMuted,
+        fontFamily: FONTS.regular,
     },
     footer: {
         flexDirection: 'row',

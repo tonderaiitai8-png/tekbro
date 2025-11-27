@@ -132,7 +132,18 @@ export const useCryptoEngine = () => {
 
                 // 3. Generate Move
                 const noise = levyRandom() * volatility;
-                const percentChange = currentMomentum + noise;
+
+                // 🐂 BULL RUN / 🐻 BEAR MARKET LOGIC
+                // If Greed > 75, bias momentum upwards (Bull Run)
+                // If Fear < 25, bias momentum downwards (Panic Sell)
+                let moodBias = 0;
+                if (fearGreedIndex > 75) {
+                    moodBias = 0.002; // +0.2% per tick bias
+                } else if (fearGreedIndex < 25) {
+                    moodBias = -0.003; // -0.3% per tick bias (Fear is stronger)
+                }
+
+                const percentChange = currentMomentum + noise + moodBias;
 
                 // 4. Update Price
                 let newPrice = crypto.price * (1 + percentChange);

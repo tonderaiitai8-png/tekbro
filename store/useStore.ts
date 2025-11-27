@@ -68,9 +68,9 @@ export const useStore = create<AppState>()(
             trades: [],
             achievements: ACHIEVEMENT_CATALOG.map(ach => ({
                 ...ach,
-                progress: ach.progress ?? 0,
-                target: ach.target ?? 0,
-                xpReward: ach.xpReward ?? 0,
+                progress: 0,
+                target: ach.target ?? ach.condition.value,
+                xpReward: ach.xpReward,
                 tier: ach.tier ?? 'bronze',
                 unlocked: false
             })),
@@ -126,13 +126,15 @@ export const useStore = create<AppState>()(
             addXp: (amount) => {
                 const { xp, level } = get();
                 const newXp = xp + amount;
-                // Harder XP Curve: 2500 * level
-                const nextLevelXp = level * 2500;
+                // Exponential Curve: 1000 * (Level ^ 1.5)
+                const nextLevelXp = Math.floor(1000 * Math.pow(level, 1.5));
 
                 if (newXp >= nextLevelXp) {
                     set({ xp: newXp, level: level + 1 });
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert('Level Up!', `You reached Level ${level + 1}!`);
+
+                    // Use Toast instead of Alert if possible, but for now Alert is fine for Level Up as it's major
+                    Alert.alert('🎉 Level Up!', `You reached Level ${level + 1}!`);
                 } else {
                     set({ xp: newXp });
                 }
@@ -200,6 +202,7 @@ export const useStore = create<AppState>()(
                 const newQuantity = currentHolding.quantity - quantity;
                 const totalValue = quantity * price;
                 const pnl = (price - currentHolding.averageCost) * quantity;
+                const pnlPercent = ((price - currentHolding.averageCost) / currentHolding.averageCost) * 100;
 
                 const newHoldings = { ...holdings };
                 if (newQuantity === 0) {
@@ -223,16 +226,24 @@ export const useStore = create<AppState>()(
                             price,
                             timestamp: Date.now(),
                             pnl,
+                            pnlPercent, // Store percent for achievements
                         } as any,
                         ...trades,
                     ],
                 });
 
+                // XP Logic: Base 10 + Profit Bonus
                 get().addXp(10);
                 if (pnl > 0) {
-                    get().addXp(20);
+                    // Profit Multiplier: (Profit % / 2) capped at 20x
+                    const multiplier = Math.min(20, Math.max(1, pnlPercent / 2));
+                    const profitXp = Math.floor(50 * multiplier);
+                    get().addXp(profitXp);
                     get().updateChallengeProgress('profit', pnl);
+                } else {
+                    get().addXp(5); // Consolation XP
                 }
+
                 get().updateChallengeProgress('volume', 1);
                 get().checkAndUnlockAchievements();
                 analytics.trackTrade('SELL', symbol, quantity, price);
@@ -305,86 +316,136 @@ export const useStore = create<AppState>()(
                 const now = Date.now();
 
                 // Performance Optimization: Debounce check (max once per 2 seconds)
-                // Unless it's a critical milestone check (can be forced if needed, but 2s is fine for UI)
                 if (now - lastAchievementCheck < 2000) {
                     return;
                 }
                 set({ lastAchievementCheck: now });
 
-                // Use setTimeout to unblock the main thread for UI animations
+                // Use setTimeout to unblock the main thread
                 setTimeout(() => {
+                    // 1. Calculate Metrics
                     const portfolioValue = Object.values(holdings).reduce((total, item) => {
                         const stock = stocks.find((s) => s.symbol === item.symbol);
                         if (!stock) return total;
                         return total + (item.quantity * stock.price);
                     }, 0);
+
+                    // Add Crypto Value (Need to access crypto store state or pass it in? 
+                    // For now, assume simple equity calculation or use what's available)
+                    // Ideally we'd sync with crypto store, but let's stick to stock equity for now + cash
                     const totalEquity = cash + portfolioValue;
 
-                    const totalProfit = trades.reduce((sum, trade) => {
-                        if (trade.type === 'SELL' && (trade as any).pnl) {
-                            return sum + (trade as any).pnl;
-                        }
-                        return sum;
-                    }, 0);
+                    const sellTrades = trades.filter(t => t.type === 'SELL');
+                    const profitableTrades = sellTrades.filter(t => (t as any).pnl > 0);
+                    const winRate = sellTrades.length > 0 ? (profitableTrades.length / sellTrades.length) * 100 : 0;
 
                     let winStreak = 0;
-                    // Optimize: Only check last 50 trades for streak if list is huge
-                    const recentTrades = trades.slice(0, 50);
-                    for (const trade of recentTrades) {
-                        if (trade.type === 'SELL' && (trade as any).pnl) {
-                            if ((trade as any).pnl > 0) {
-                                winStreak++;
-                            } else {
-                                break;
-                            }
-                        }
+                    for (const trade of sellTrades) { // sellTrades is already sorted new -> old? No, trades is new -> old
+                        if ((trade as any).pnl > 0) winStreak++;
+                        else break;
                     }
 
+                    // Max Gain %
+                    const maxGainPercent = sellTrades.reduce((max, t) => Math.max(max, (t as any).pnlPercent || 0), 0);
+
+                    // Diversity
+                    const uniqueHoldings = Object.keys(holdings).length;
+
+                    // Concentration (Max % of portfolio in one stock)
+                    let maxConcentration = 0;
+                    if (portfolioValue > 0) {
+                        Object.values(holdings).forEach(item => {
+                            const stock = stocks.find(s => s.symbol === item.symbol);
+                            if (stock) {
+                                const value = item.quantity * stock.price;
+                                const percent = (value / totalEquity) * 100;
+                                maxConcentration = Math.max(maxConcentration, percent);
+                            }
+                        });
+                    }
+
+                    // 2. Check Achievements
                     const updatedAchievements = achievements.map((ach) => {
-                        // Skip if already unlocked to save processing
                         if (ach.unlocked) return ach;
 
                         let progress = ach.progress;
+                        const { type, value } = ach.condition;
 
-                        if (['first_trade', 'getting_started', 'day_trader', 'active_investor', 'wall_street_wolf', 'market_maker'].includes(ach.id)) {
-                            progress = trades.length;
-                        }
-                        else if (['in_the_green', 'pocket_change', 'side_hustle', 'salary_match', 'six_figures', 'high_roller', 'tycoon'].includes(ach.id)) {
-                            progress = Math.max(0, totalProfit);
-                        }
-                        else if (['saving_up', '15k_club', '25k_club', '50k_club', '100k_club', 'quarter_mil', 'millionaire'].includes(ach.id)) {
-                            progress = totalEquity;
-                        }
-                        else if (['testing_waters', 'diversified', 'portfolio_master', 'fund_manager', 'index_fund', 'market_owner'].includes(ach.id)) {
-                            progress = Object.keys(holdings).length;
-                        }
-                        else if (['lucky_break', 'hot_streak', 'on_fire', 'trader_pro', 'unstoppable', 'oracle'].includes(ach.id)) {
-                            progress = winStreak;
-                        }
-                        // Wolf of Wall Street Specials
-                        else if (ach.id === 'fun_coupons') {
-                            // Check max profit in single trade
-                            const maxTradeProfit = trades.reduce((max, t) => Math.max(max, (t as any).pnl || 0), 0);
-                            progress = maxTradeProfit;
-                        }
-                        else if (ach.id === 'pump_numbers') {
-                            // Check trades today
-                            const today = new Date().toDateString();
-                            const tradesToday = trades.filter(t => new Date(t.timestamp).toDateString() === today).length;
-                            progress = tradesToday;
+                        switch (type) {
+                            case 'netWorth':
+                                progress = totalEquity;
+                                break;
+                            case 'trades':
+                                progress = trades.length;
+                                break;
+                            case 'profit_trade':
+                                progress = profitableTrades.length > 0 ? 1 : 0;
+                                break;
+                            case 'gain_percent':
+                                progress = maxGainPercent;
+                                break;
+                            case 'win_streak':
+                                progress = winStreak;
+                                break;
+                            case 'win_rate':
+                                progress = trades.length >= 50 ? winRate : 0; // Min 50 trades for win rate
+                                break;
+                            case 'diversity':
+                                progress = uniqueHoldings;
+                                break;
+                            case 'concentration':
+                                progress = maxConcentration;
+                                break;
+                            case 'trade_size':
+                                // Check max trade value (buy or sell)
+                                const maxTradeVal = trades.reduce((max, t) => Math.max(max, t.quantity * t.price), 0);
+                                progress = maxTradeVal;
+                                break;
+                            case 'low_cash':
+                                progress = cash < value ? value : cash; // Inverted logic: if cash < target, we met it. 
+                                // Actually, progress usually goes UP to target. 
+                                // For 'low_cash', we want cash <= 100. 
+                                // Let's set progress to 100 if cash <= 100, else 0.
+                                progress = cash <= value ? value : 0;
+                                break;
+                            case 'loss_percent':
+                                const maxLoss = sellTrades.reduce((max, t) => {
+                                    const pnlP = (t as any).pnlPercent || 0;
+                                    return pnlP < 0 ? Math.max(max, Math.abs(pnlP)) : max;
+                                }, 0);
+                                progress = maxLoss;
+                                break;
+                            case 'profit_total':
+                                const totalProfit = sellTrades.reduce((sum, t) => {
+                                    const pnl = (t as any).pnl || 0;
+                                    return pnl > 0 ? sum + pnl : sum;
+                                }, 0);
+                                progress = totalProfit;
+                                break;
+                            case 'loss_total':
+                                const totalLoss = sellTrades.reduce((sum, t) => {
+                                    const pnl = (t as any).pnl || 0;
+                                    return pnl < 0 ? sum + Math.abs(pnl) : sum;
+                                }, 0);
+                                progress = totalLoss;
+                                break;
+                            case 'login_streak':
+                                progress = get().loginStreak;
+                                break;
+                            default:
+                                break;
                         }
 
                         return { ...ach, progress };
                     });
 
-                    // Batch updates to avoid multiple re-renders
+                    // Batch updates
                     let hasUpdates = false;
                     const finalAchievements = updatedAchievements.map(ach => {
-                        if (!ach.unlocked && ach.progress >= ach.target) {
+                        if (!ach.unlocked && ach.progress >= ach.target) { // Note: for low_cash, target is 100, progress is 100 if met
                             hasUpdates = true;
-                            // Trigger alert in next tick to avoid freeze
                             setTimeout(() => get().unlockAchievement(ach.id), 100);
-                            return { ...ach, unlocked: true }; // Optimistic update
+                            return { ...ach, unlocked: true };
                         }
                         return ach;
                     });
@@ -526,8 +587,8 @@ export const useStore = create<AppState>()(
                         ...catalogItem,
                         progress: existing ? existing.progress : 0,
                         unlocked: existing ? existing.unlocked : false,
-                        target: catalogItem.target ?? 0,
-                        xpReward: catalogItem.xpReward ?? 0,
+                        target: catalogItem.target ?? catalogItem.condition.value,
+                        xpReward: catalogItem.xpReward,
                         tier: catalogItem.tier ?? 'bronze'
                     };
                 });
@@ -545,6 +606,9 @@ export const useStore = create<AppState>()(
                     achievements: ACHIEVEMENT_CATALOG.map(ach => ({
                         ...ach,
                         progress: 0,
+                        target: ach.target ?? ach.condition.value,
+                        xpReward: ach.xpReward,
+                        tier: ach.tier ?? 'bronze',
                         unlocked: false
                     })),
                     watchlist: [],

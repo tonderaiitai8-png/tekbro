@@ -31,19 +31,33 @@ export interface Trade {
     quantity: number;
     price: number;
     timestamp: number;
+    pnl?: number;
+    pnlPercent?: number;
 }
 
 // Sprint 2: Achievement type
-export interface Achievement {
+export interface AchievementCondition {
+    type: 'netWorth' | 'trades' | 'profit_trade' | 'gain_percent' | 'quick_profit' | 'hold_duration' | 'win_streak' | 'win_rate' | 'concentration' | 'diversity' | 'crypto_own' | 'crypto_value' | 'penny_profit' | 'trade_size' | 'low_cash' | 'loss_percent' | 'netWorth_low' | 'comeback' | 'time_trade' | 'no_sell_streak' | 'profit_total' | 'loss_total' | 'login_streak';
+    value: number;
+}
+
+export interface AchievementTemplate {
     id: string;
     title: string;
     description: string;
-    tier: 'bronze' | 'silver' | 'gold';
-    unlocked: boolean;
-    progress: number; // Current progress value
-    target: number; // Target value to unlock
     icon: string;
     xpReward: number;
+    category: 'Wealth' | 'Trading' | 'Mastery' | 'Risk' | 'Secret' | 'Portfolio' | 'Social' | 'Milestones';
+    condition: AchievementCondition;
+    tier?: 'bronze' | 'silver' | 'gold';
+    target?: number;
+}
+
+export interface Achievement extends AchievementTemplate {
+    unlocked: boolean;
+    progress: number;
+    target: number; // Required in state
+    tier: 'bronze' | 'silver' | 'gold'; // Required in state
 }
 
 export interface NewsItem {

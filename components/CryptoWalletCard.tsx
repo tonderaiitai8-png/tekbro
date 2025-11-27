@@ -1,59 +1,82 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { useCryptoStore } from '../store/useCryptoStore';
 import { useStore } from '../store/useStore';
 import * as Haptics from 'expo-haptics';
+import { CryptoHistoryModal } from './CryptoHistoryModal';
 
 export const CryptoWalletCard = ({ onDeposit, onWithdraw }: { onDeposit: () => void, onWithdraw: () => void }) => {
-    const { cryptoWallet, getTotalCryptoValue } = useCryptoStore();
+    const { cryptoWallet, getTotalCryptoValue, cryptoTrades } = useCryptoStore();
     const { cash } = useStore();
+    const [showHistory, setShowHistory] = useState(false);
 
     const totalValue = getTotalCryptoValue();
     const totalEquity = cryptoWallet + totalValue;
 
     return (
-        <View style={styles.container}>
-            <LinearGradient
-                colors={['#4A00E0', '#8E2DE2']} // Purple/Violet gradient for Crypto
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.card}
+        <>
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                    Haptics.selectionAsync();
+                    setShowHistory(true);
+                }}
+                style={styles.container}
             >
-                <View style={styles.headerRow}>
-                    <View>
-                        <Text style={styles.label}>CRYPTO WALLET</Text>
-                        <Text style={styles.balance}>£{cryptoWallet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                <LinearGradient
+                    colors={['#4A00E0', '#8E2DE2']} // Purple/Violet gradient for Crypto
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.card}
+                >
+                    <View style={styles.headerRow}>
+                        <View>
+                            <Text style={styles.label}>CRYPTO WALLET</Text>
+                            <Text style={styles.balance}>£{cryptoWallet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                        </View>
+                        <View style={styles.netWorthContainer}>
+                            <Text style={styles.netWorthLabel}>CRYPTO ASSETS</Text>
+                            <Text style={styles.netWorthValue}>£{totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                        </View>
                     </View>
-                    <View style={styles.netWorthContainer}>
-                        <Text style={styles.netWorthLabel}>CRYPTO ASSETS</Text>
-                        <Text style={styles.netWorthValue}>£{totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.depositButton]}
+                            onPress={(e) => {
+                                e.stopPropagation(); // Prevent opening history
+                                onDeposit();
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <ArrowDownCircle size={20} color={COLORS.white} />
+                            <Text style={styles.actionText}>Deposit</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.withdrawButton]}
+                            onPress={(e) => {
+                                e.stopPropagation(); // Prevent opening history
+                                onWithdraw();
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <ArrowUpCircle size={20} color={COLORS.white} />
+                            <Text style={styles.actionText}>Withdraw</Text>
+                        </TouchableOpacity>
                     </View>
-                </View>
+                </LinearGradient>
+            </TouchableOpacity>
 
-                <View style={styles.actionRow}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.depositButton]}
-                        onPress={onDeposit}
-                        activeOpacity={0.8}
-                    >
-                        <Ionicons name="arrow-down-circle-outline" size={20} color={COLORS.white} />
-                        <Text style={styles.actionText}>Deposit</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.withdrawButton]}
-                        onPress={onWithdraw}
-                        activeOpacity={0.8}
-                    >
-                        <Ionicons name="arrow-up-circle-outline" size={20} color={COLORS.white} />
-                        <Text style={styles.actionText}>Withdraw</Text>
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
-        </View>
+            <CryptoHistoryModal
+                visible={showHistory}
+                onClose={() => setShowHistory(false)}
+                trades={cryptoTrades}
+            />
+        </>
     );
 };
 
