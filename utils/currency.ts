@@ -1,28 +1,46 @@
-export const INITIAL_CASH = 10000;
-export const CURRENCY_SYMBOL = '£';
-export const CURRENCY_CODE = 'GBP';
+import { useStore } from '../store/useStore';
 
-// Format currency with British pounds
-export function formatCurrency(amount: number): string {
-    return `£${amount.toLocaleString('en-GB', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    })}`;
-}
+export const formatCurrency = (amount: number): string => {
+    // We can't use hooks here directly if this is called outside a component,
+    // but we can access the store state directly via getState()
+    const currency = useStore.getState().currency || 'GBP';
 
-// Format currency without decimals
-export function formatCurrencyWhole(amount: number): string {
-    if (amount >= 1000000) {
-        return `£${(amount / 1000000).toFixed(1)}M`;
+    let symbol = '£';
+    let rate = 1;
+
+    switch (currency) {
+        case 'USD':
+            symbol = '$';
+            rate = 1.27; // Approx rate
+            break;
+        case 'EUR':
+            symbol = '€';
+            rate = 1.17;
+            break;
+        case 'JPY':
+            symbol = '¥';
+            rate = 190.5;
+            break;
+        case 'BTC':
+            symbol = '₿';
+            rate = 0.000015; // Very approx
+            break;
+        case 'GBP':
+        default:
+            symbol = '£';
+            rate = 1;
+            break;
     }
-    if (amount >= 1000) {
-        return `£${(amount / 1000).toFixed(1)}K`;
-    }
-    return `£${Math.round(amount).toLocaleString('en-GB')}`;
-}
 
-// Format percentage
-export function formatPercent(value: number): string {
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(2)}%`;
-}
+    const value = amount * rate;
+
+    if (currency === 'BTC') {
+        return `${symbol}${value.toFixed(6)}`;
+    }
+
+    if (currency === 'JPY') {
+        return `${symbol}${Math.round(value).toLocaleString()}`;
+    }
+
+    return `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};

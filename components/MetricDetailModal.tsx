@@ -14,6 +14,7 @@ import { X, Info, TrendingUp, Wallet, ArrowUpRight, ArrowDownLeft, PieChart } fr
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Trade } from '../types';
 import { HapticPatterns } from '../utils/haptics';
+import { formatCurrency } from '../utils/currency';
 
 interface MetricDetailModalProps {
     visible: boolean;
@@ -121,7 +122,7 @@ export const MetricDetailModal: React.FC<MetricDetailModalProps> = ({
                                                         </Text>
                                                     </View>
                                                     <Text style={[styles.transactionAmount, { color: trade.type === 'BUY' ? COLORS.negative : COLORS.positive }]}>
-                                                        {trade.type === 'BUY' ? '-' : '+'}£{(trade.quantity * trade.price).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        {trade.type === 'BUY' ? '-' : '+'}{formatCurrency(trade.quantity * trade.price)}
                                                     </Text>
                                                 </View>
                                             ))}
@@ -135,7 +136,7 @@ export const MetricDetailModal: React.FC<MetricDetailModalProps> = ({
                                             <View style={styles.breakdownRow}>
                                                 <View style={[styles.breakdownDot, { backgroundColor: '#8B5CF6' }]} />
                                                 <Text style={styles.breakdownLabel}>Cash</Text>
-                                                <Text style={styles.breakdownValue}>£{breakdown.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                                <Text style={styles.breakdownValue}>{formatCurrency(breakdown.cash)}</Text>
                                                 <Text style={styles.breakdownPercent}>
                                                     {((breakdown.cash / (breakdown.cash + breakdown.stocks + breakdown.crypto)) * 100).toFixed(1)}%
                                                 </Text>
@@ -143,7 +144,7 @@ export const MetricDetailModal: React.FC<MetricDetailModalProps> = ({
                                             <View style={styles.breakdownRow}>
                                                 <View style={[styles.breakdownDot, { backgroundColor: '#06B6D4' }]} />
                                                 <Text style={styles.breakdownLabel}>Stocks</Text>
-                                                <Text style={styles.breakdownValue}>£{breakdown.stocks.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                                <Text style={styles.breakdownValue}>{formatCurrency(breakdown.stocks)}</Text>
                                                 <Text style={styles.breakdownPercent}>
                                                     {((breakdown.stocks / (breakdown.cash + breakdown.stocks + breakdown.crypto)) * 100).toFixed(1)}%
                                                 </Text>
@@ -151,7 +152,7 @@ export const MetricDetailModal: React.FC<MetricDetailModalProps> = ({
                                             <View style={styles.breakdownRow}>
                                                 <View style={[styles.breakdownDot, { backgroundColor: '#F59E0B' }]} />
                                                 <Text style={styles.breakdownLabel}>Crypto</Text>
-                                                <Text style={styles.breakdownValue}>£{breakdown.crypto.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                                <Text style={styles.breakdownValue}>{formatCurrency(breakdown.crypto)}</Text>
                                                 <Text style={styles.breakdownPercent}>
                                                     {((breakdown.crypto / (breakdown.cash + breakdown.stocks + breakdown.crypto)) * 100).toFixed(1)}%
                                                 </Text>
@@ -166,13 +167,13 @@ export const MetricDetailModal: React.FC<MetricDetailModalProps> = ({
                                             <View style={styles.perfRow}>
                                                 <Text style={styles.perfLabel}>Daily Change</Text>
                                                 <Text style={[styles.perfValue, { color: performance.dailyChange >= 0 ? COLORS.positive : COLORS.negative }]}>
-                                                    {performance.dailyChange >= 0 ? '+' : ''}£{performance.dailyChange.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({performance.dailyChangePercent >= 0 ? '+' : ''}{performance.dailyChangePercent.toFixed(2)}%)
+                                                    {performance.dailyChange >= 0 ? '+' : ''}{formatCurrency(performance.dailyChange)} ({performance.dailyChangePercent >= 0 ? '+' : ''}{performance.dailyChangePercent.toFixed(2)}%)
                                                 </Text>
                                             </View>
                                             <View style={styles.perfRow}>
                                                 <Text style={styles.perfLabel}>All-Time P&L</Text>
                                                 <Text style={[styles.perfValue, { color: performance.allTimePnL >= 0 ? COLORS.positive : COLORS.negative }]}>
-                                                    {performance.allTimePnL >= 0 ? '+' : ''}£{performance.allTimePnL.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({performance.allTimePnLPercent >= 0 ? '+' : ''}{performance.allTimePnLPercent.toFixed(2)}%)
+                                                    {performance.allTimePnL >= 0 ? '+' : ''}{formatCurrency(performance.allTimePnL)} ({performance.allTimePnLPercent >= 0 ? '+' : ''}{performance.allTimePnLPercent.toFixed(2)}%)
                                                 </Text>
                                             </View>
                                         </View>

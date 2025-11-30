@@ -14,7 +14,9 @@ export const STOCK_CATALOG: Omit<Stock, 'history'>[] = [
         marketCap: calculateMarketCap(stock.basePrice, stock.symbol),
         volatility: stock.volatility,
         description: stock.description,
-        icon: stock.icon
+        icon: stock.icon,
+        change: 0,
+        percentChange: 0
     })),
 
     // Convert crypto database to catalog format
@@ -27,7 +29,9 @@ export const STOCK_CATALOG: Omit<Stock, 'history'>[] = [
         marketCap: parseMarketCap(crypto.marketCap),
         volatility: crypto.volatility,
         description: crypto.description,
-        icon: crypto.icon
+        icon: crypto.icon,
+        change: 0,
+        percentChange: 0
     }))
 ];
 
@@ -77,20 +81,49 @@ function parseMarketCap(marketCapStr: string): number {
  * Initialize stocks with price history
  * Creates initial 2-point history for each stock
  */
+/**
+ * Initialize stocks with price history
+ * Creates initial 24h history (hourly points) for each stock
+ */
 export function initializeStocks(): Stock[] {
-    return STOCK_CATALOG.map(stock => ({
-        ...stock,
-        history: [
-            {
-                timestamp: Date.now() - 3000,
-                value: stock.price * (0.98 + Math.random() * 0.04)
-            },
-            {
-                timestamp: Date.now(),
-                value: stock.price
-            }
-        ]
-    }));
+    const now = Date.now();
+    const POINTS = 24;
+    const INTERVAL = 3600 * 1000; // 1 hour
+
+    return STOCK_CATALOG.map(stock => {
+        const history = [];
+        let currentPrice = stock.price;
+
+        // Generate history backwards
+        for (let i = POINTS; i >= 0; i--) {
+            const time = now - (i * INTERVAL);
+            // Random walk for history
+            const volatility = (stock.volatility || 1) * 0.02; // 2% per step base
+            const change = 1 + (Math.random() - 0.5) * volatility;
+
+            // We want the LAST point to match the current stock.price
+            // So we'll generate relative changes and then normalize
+            history.push({
+                timestamp: time,
+                value: 0 // Placeholder, will fix below
+            });
+        }
+
+        // Re-calculate values to ensure end matches stock.price
+        // We'll walk backwards from current price
+        history[POINTS].value = stock.price;
+        for (let i = POINTS - 1; i >= 0; i--) {
+            const volatility = (stock.volatility || 1) * 0.01;
+            const change = 1 + (Math.random() - 0.5) * volatility;
+            // Previous price = Current / Change
+            history[i].value = history[i + 1].value / change;
+        }
+
+        return {
+            ...stock,
+            history
+        };
+    });
 }
 
 // Export total count for validation

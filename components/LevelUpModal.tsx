@@ -1,214 +1,201 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
-import { Trophy, Star, Check } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Crown, Star, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-
-interface LevelUpModalProps {
-    visible: boolean;
-    level: number;
-    onClose: () => void;
-}
+import { useStore } from '../store/useStore';
+import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
-export const LevelUpModal: React.FC<LevelUpModalProps> = ({ visible, level, onClose }) => {
+export const LevelUpModal = () => {
+    const { levelUpNotification, setLevelUpNotification } = useStore();
     const scaleAnim = useRef(new Animated.Value(0.5)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
-    const rotateAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        if (visible) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
+        if (levelUpNotification) {
             Animated.parallel([
                 Animated.spring(scaleAnim, {
                     toValue: 1,
-                    tension: 50,
-                    friction: 7,
-                    useNativeDriver: true
+                    friction: 5,
+                    tension: 40,
+                    useNativeDriver: true,
                 }),
                 Animated.timing(opacityAnim, {
                     toValue: 1,
                     duration: 300,
-                    useNativeDriver: true
-                }),
-                Animated.loop(
-                    Animated.timing(rotateAnim, {
-                        toValue: 1,
-                        duration: 10000,
-                        useNativeDriver: true
-                    })
-                )
+                    useNativeDriver: true,
+                })
             ]).start();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } else {
             scaleAnim.setValue(0.5);
             opacityAnim.setValue(0);
-            rotateAnim.setValue(0);
         }
-    }, [visible]);
+    }, [levelUpNotification]);
 
-    const spin = rotateAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '360deg']
-    });
+    if (!levelUpNotification) return null;
 
-    if (!visible) return null;
+    const handleClose = () => {
+        Animated.timing(opacityAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => {
+            setLevelUpNotification(null);
+        });
+    };
 
     return (
         <Modal
             transparent
-            visible={visible}
-            animationType="fade"
-            onRequestClose={onClose}
+            visible={!!levelUpNotification}
+            animationType="none"
+            onRequestClose={handleClose}
         >
-            <View style={styles.overlay}>
-                <Animated.View
-                    style={[
-                        styles.container,
-                        {
-                            opacity: opacityAnim,
-                            transform: [{ scale: scaleAnim }]
-                        }
-                    ]}
-                >
-                    {/* Background Glow Effect */}
-                    <Animated.View style={[styles.glow, { transform: [{ rotate: spin }] }]} />
-
-                    <View style={styles.iconContainer}>
-                        <Trophy size={64} color={COLORS.accent} fill={COLORS.accent} />
-                    </View>
-
-                    <Text style={styles.title}>LEVEL UP!</Text>
-
-                    <View style={styles.levelBadge}>
-                        <Text style={styles.levelText}>{level}</Text>
-                    </View>
-
-                    <Text style={styles.subtitle}>You reached Level {level}</Text>
-
-                    <View style={styles.rewardsContainer}>
-                        <View style={styles.rewardRow}>
-                            <Star size={20} color={COLORS.warning} fill={COLORS.warning} />
-                            <Text style={styles.rewardText}>+1000 XP</Text>
-                        </View>
-                        <View style={styles.rewardRow}>
-                            <Check size={20} color={COLORS.positive} />
-                            <Text style={styles.rewardText}>New Features Unlocked</Text>
-                        </View>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.button}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            onClose();
-                        }}
+            <BlurView intensity={60} tint="dark" style={styles.container}>
+                <Animated.View style={[
+                    styles.content,
+                    {
+                        opacity: opacityAnim,
+                        transform: [{ scale: scaleAnim }]
+                    }
+                ]}>
+                    <LinearGradient
+                        colors={['#FFD700', '#FFA500']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.card}
                     >
-                        <Text style={styles.buttonText}>AWESOME!</Text>
-                    </TouchableOpacity>
+                        <View style={styles.iconContainer}>
+                            <Crown size={48} color="#FFF" fill="#FFF" />
+                        </View>
+
+                        <Text style={styles.title}>LEVEL UP!</Text>
+                        <Text style={styles.levelText}>You reached Level {levelUpNotification.level}</Text>
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.rewardsContainer}>
+                            <Text style={styles.rewardsTitle}>REWARDS UNLOCKED</Text>
+                            {levelUpNotification.rewards.map((reward, index) => (
+                                <View key={index} style={styles.rewardItem}>
+                                    <Star size={16} color="#FFF" fill="#FFF" />
+                                    <Text style={styles.rewardText}>{reward}</Text>
+                                </View>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity onPress={handleClose} style={styles.button}>
+                            <Text style={styles.buttonText}>AWESOME</Text>
+                        </TouchableOpacity>
+                    </LinearGradient>
                 </Animated.View>
-            </View>
+            </BlurView>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: {
+    container: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.8)',
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
     },
-    container: {
+    content: {
         width: width * 0.85,
-        backgroundColor: COLORS.bgElevated,
+        alignItems: 'center',
+    },
+    card: {
+        width: '100%',
         borderRadius: RADIUS.xl,
         padding: SPACING.xl,
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.accent,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 0 },
+        shadowColor: "#FFD700",
+        shadowOffset: {
+            width: 0,
+            height: 0,
+        },
         shadowOpacity: 0.5,
         shadowRadius: 20,
         elevation: 10,
-    },
-    glow: {
-        position: 'absolute',
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-        backgroundColor: COLORS.accent,
-        opacity: 0.1,
-        top: -50,
+        borderWidth: 2,
+        borderColor: '#FFF',
     },
     iconContainer: {
         marginBottom: SPACING.lg,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 15,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
     },
     title: {
         fontSize: 32,
-        fontFamily: FONTS.bold,
-        color: COLORS.text,
-        marginBottom: SPACING.md,
+        fontFamily: FONTS.black,
+        color: '#FFF',
+        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
         letterSpacing: 2,
-    },
-    levelBadge: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: COLORS.bg,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 4,
-        borderColor: COLORS.accent,
-        marginBottom: SPACING.md,
+        marginBottom: SPACING.xs,
     },
     levelText: {
-        fontSize: 36,
-        fontFamily: FONTS.bold,
-        color: COLORS.accent,
-    },
-    subtitle: {
         fontSize: 18,
-        fontFamily: FONTS.medium,
-        color: COLORS.textSecondary,
-        marginBottom: SPACING.xl,
+        fontFamily: FONTS.bold,
+        color: 'rgba(255,255,255,0.9)',
+        marginBottom: SPACING.lg,
+    },
+    divider: {
+        width: '100%',
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        marginBottom: SPACING.lg,
     },
     rewardsContainer: {
         width: '100%',
-        backgroundColor: COLORS.bg,
-        borderRadius: RADIUS.md,
-        padding: SPACING.md,
         marginBottom: SPACING.xl,
-        gap: SPACING.sm,
     },
-    rewardRow: {
+    rewardsTitle: {
+        fontSize: 12,
+        fontFamily: FONTS.bold,
+        color: 'rgba(255,255,255,0.8)',
+        marginBottom: SPACING.md,
+        textAlign: 'center',
+        letterSpacing: 1,
+    },
+    rewardItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: SPACING.sm,
+        justifyContent: 'center',
+        gap: 8,
+        marginBottom: 8,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: SPACING.sm,
+        borderRadius: RADIUS.full,
     },
     rewardText: {
-        fontSize: 16,
-        fontFamily: FONTS.medium,
-        color: COLORS.text,
+        fontSize: 14,
+        fontFamily: FONTS.bold,
+        color: '#FFF',
     },
     button: {
-        backgroundColor: COLORS.accent,
-        paddingVertical: SPACING.md,
-        paddingHorizontal: SPACING.xl,
+        backgroundColor: '#FFF',
+        paddingVertical: 12,
+        paddingHorizontal: 32,
         borderRadius: RADIUS.full,
-        width: '100%',
-        alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 5,
     },
     buttonText: {
-        color: COLORS.bg,
-        fontSize: 18,
-        fontFamily: FONTS.bold,
+        fontSize: 16,
+        fontFamily: FONTS.black,
+        color: '#FFA500',
         letterSpacing: 1,
-    }
+    },
 });

@@ -52,10 +52,18 @@ export const useCryptoEngine = () => {
         setCryptos,
         updateCryptoPrices,
         checkCryptoLiquidation,
-        marketPhase,
-        setMarketPhase,
         dailyReset
     } = useCryptoStore();
+
+    const {
+        cryptoFearGreedIndex,
+        cryptoCyclePhase,
+        updateCryptoEngine,
+        setAltSeason,
+        altSeason,
+        whaleAlert,
+        setWhaleAlert
+    } = useMarketMoodStore();
 
     const momentumRef = useRef<Record<string, number>>({});
     const tickCountRef = useRef(0);
@@ -75,14 +83,25 @@ export const useCryptoEngine = () => {
                 if (momentumRef.current[c.symbol] === undefined) momentumRef.current[c.symbol] = 0;
             });
         }
+
+        // Purely In-House Simulation - No External API Hydration
+        // Initial prices are set by initializeCryptos() in constants/cryptoData.ts
     }, []);
 
     // 2. MAIN ENGINE LOOP (1s Ticks)
     useEffect(() => {
         const interval = setInterval(() => {
             const { cryptos } = useCryptoStore.getState();
+            const {
+                cryptoFearGreedIndex,
+                cryptoCyclePhase,
+                updateCryptoEngine,
+                setWhaleAlert,
+                altSeason,
+                setAltSeason
+            } = useMarketMoodStore.getState();
 
-            // 0. RE-INITIALIZATION CHECK
+            // 0. RE-INITIALIZATION & SANITY CHECK
             if (cryptos.length === 0) {
                 const initializedCryptos = initializeCryptos();
                 setCryptos(initializedCryptos);
@@ -90,9 +109,20 @@ export const useCryptoEngine = () => {
                 return;
             }
 
-            const { cryptoFearGreedIndex, updateCryptoEngine } = useMarketMoodStore.getState();
-            const priceUpdates: Record<string, number> = {};
+            // EMERGENCY SANITY CHECK: If any crypto is > 20x base price, reset ALL to protect the game state.
+            const isBroken = cryptos.some(c => {
+                const base = CRYPTO_CATALOG.find(cat => cat.symbol === c.symbol)?.basePrice || 1;
+                return c.price > base * 20;
+            });
 
+            if (isBroken) {
+                const initializedCryptos = initializeCryptos();
+                setCryptos(initializedCryptos);
+                initializedCryptos.forEach(c => momentumRef.current[c.symbol] = 0);
+                return; // Skip this tick
+            }
+
+            const priceUpdates: Record<string, number> = {};
             let totalMomentum = 0;
             let totalVolatility = 0;
 
@@ -104,45 +134,52 @@ export const useCryptoEngine = () => {
             // 61-80: FOMO (Bullish)
             // 81-100: Moon Mission (Parabolic)
 
-            // Base bias: -0.5% to +0.5% per tick based on F&G
+            // Base bias: -0.05% to +0.05% per tick based on F&G (Reduced from 0.5%)
             // Strict correlation: The meter dictates the candle color.
-            const sentimentBias = ((cryptoFearGreedIndex - 50) / 50) * 0.005;
+            const sentimentBias = ((cryptoFearGreedIndex - 50) / 50) * 0.0005;
 
             // PHASE LOGIC (Secondary Driver)
             // Phases amplify or dampen the F&G signal
             let phaseBias = 0;
             let phaseVolMultiplier = 1;
 
-            switch (marketPhase) {
-                case 'ACCUMULATION':
-                    phaseBias = 0.0001;
-                    phaseVolMultiplier = 0.6; // Low vol
+            switch (cryptoCyclePhase) {
+                case 'accumulation':
+                    phaseBias = 0.00001; // Very slight upward drift
+                    phaseVolMultiplier = 0.3; // Low vol
                     break;
-                case 'BULL_RUN':
-                    phaseBias = 0.0005;
-                    phaseVolMultiplier = 1.2;
+                case 'markup':
+                    phaseBias = 0.0001; // Steady upward bias (was 0.0008)
+                    phaseVolMultiplier = 0.8; // Moderate vol (was 1.2)
                     break;
-                case 'EUPHORIA':
-                    phaseBias = 0.001; // Parabolic
-                    phaseVolMultiplier = 2.5; // Extreme vol
+                case 'distribution':
+                    phaseBias = -0.00005; // Slight downward drift
+                    phaseVolMultiplier = 1.2; // High vol
                     break;
-                case 'CORRECTION':
-                    phaseBias = -0.0005;
-                    phaseVolMultiplier = 1.5;
-                    break;
-                case 'BEAR_WINTER':
-                    phaseBias = -0.0002;
-                    phaseVolMultiplier = 0.4; // Boring bleed
+                case 'markdown':
+                    phaseBias = -0.0002; // Strong downward bias (was -0.001)
+                    phaseVolMultiplier = 0.6;
                     break;
             }
 
             cryptos.forEach(crypto => {
+                const catalogItem = CRYPTO_CATALOG.find(c => c.symbol === crypto.symbol);
+                const basePrice = catalogItem?.basePrice || 1;
+
                 // 1. Base Volatility
-                const baseVol = (CRYPTO_CATALOG.find(c => c.symbol === crypto.symbol)?.volatility || 0.05) * 0.01;
+                // Reduced base volatility scaling
+                const baseVol = (catalogItem?.volatility || 0.05) * 0.002;
 
                 // 2. Momentum (Inertia)
                 let currentMomentum = momentumRef.current[crypto.symbol] || 0;
-                currentMomentum = (currentMomentum * 0.95) + (phaseBias * 0.05); // Decay + Phase Pull
+                currentMomentum = (currentMomentum * 0.90) + (phaseBias * 0.1); // Faster decay (was 0.95)
+
+                // MEAN REVERSION FORCE (Gravity)
+                // If price > 5x base, pull it down hard.
+                if (crypto.price > basePrice * 5) {
+                    currentMomentum -= 0.005; // Strong gravity
+                }
+
                 momentumRef.current[crypto.symbol] = currentMomentum;
 
                 // 3. Random Walk (Lévy Flight for Fat Tails)
@@ -155,27 +192,18 @@ export const useCryptoEngine = () => {
                 const percentChange = sentimentBias + currentMomentum + noise;
                 let newPrice = crypto.price * (1 + percentChange);
 
-                // --- SMART FLOOR LOGIC ---
-                const catalogItem = CRYPTO_CATALOG.find(c => c.symbol === crypto.symbol);
-                const basePrice = catalogItem?.basePrice || 1;
-                const hardFloor = catalogItem?.minPrice || (basePrice * 0.30);
+                // --- STRICT PRICE CAPS (Floors & Ceilings) ---
+                // Floor: Never drop below 10% of base price (unless it's a meme coin, maybe 1%)
+                const minPrice = basePrice * 0.10;
+                // Ceiling: Cap at 10x base price (prevent infinite pumps)
+                const maxPrice = basePrice * 10;
 
-                if (newPrice < hardFloor) {
-                    newPrice = hardFloor;
-                    // Hard Bounce
-                    momentumRef.current[crypto.symbol] = Math.abs(momentumRef.current[crypto.symbol]) * 0.8 + 0.01;
-                }
-
-                // --- SMART CEILING LOGIC ---
-                let ceilingMult = 100;
-                if (marketPhase === 'BEAR_WINTER') ceilingMult = 1.5;
-                if (marketPhase === 'CORRECTION') ceilingMult = 2.0;
-                if (marketPhase === 'ACCUMULATION') ceilingMult = 3.0;
-
-                const hardCeiling = basePrice * ceilingMult;
-                if (newPrice > hardCeiling) {
-                    newPrice = hardCeiling;
-                    momentumRef.current[crypto.symbol] = -Math.abs(momentumRef.current[crypto.symbol]) * 0.5 - 0.005;
+                if (newPrice < minPrice) {
+                    newPrice = minPrice;
+                    momentumRef.current[crypto.symbol] = Math.abs(momentumRef.current[crypto.symbol]) * 0.5; // Bounce
+                } else if (newPrice > maxPrice) {
+                    newPrice = maxPrice;
+                    momentumRef.current[crypto.symbol] = -Math.abs(momentumRef.current[crypto.symbol]) * 0.5; // Reject
                 }
 
                 // Safety Clamps
@@ -191,13 +219,35 @@ export const useCryptoEngine = () => {
             checkCryptoLiquidation();
 
             // Update Mood Store
-            // Update Mood Store
             updateCryptoEngine({
                 momentum: totalMomentum / cryptos.length,
                 volatility: totalVolatility / cryptos.length,
                 dominance: 50, // Placeholder
-                hype: cryptoFearGreedIndex // Use F&G as proxy for hype
+                hype: cryptoFearGreedIndex
             });
+
+            // --- EVENT SIMULATION ---
+            // 1. Whale Alerts (Random, Rare)
+            if (tickCountRef.current % 120 === 0) { // Check every 2 mins
+                if (Math.random() > 0.7) { // 30% chance
+                    const randomCrypto = CRYPTO_CATALOG[Math.floor(Math.random() * CRYPTO_CATALOG.length)];
+                    const isBuy = Math.random() > 0.5;
+                    setWhaleAlert({
+                        symbol: randomCrypto.symbol,
+                        type: isBuy ? 'buy' : 'sell',
+                        amount: Math.floor(Math.random() * 1000000) + 500000 // 500k - 1.5M
+                    });
+
+                    // Clear alert after 10s
+                    setTimeout(() => setWhaleAlert(null), 10000);
+                }
+            }
+
+            // 2. Altcoin Season (Driven by Dominance - Placeholder logic)
+            // If we had real dominance tracking, we'd use it. For now, random shifts.
+            if (tickCountRef.current % 600 === 0) { // Every 10 mins
+                if (Math.random() > 0.8) setAltSeason(!altSeason);
+            }
 
             // DAILY RESET LOGIC
             tickCountRef.current += 1;
@@ -205,18 +255,30 @@ export const useCryptoEngine = () => {
                 dailyReset();
                 tickCountRef.current = 0;
             }
+
+            // Check Mission Progress (Survival)
+            import('../utils/missionEngine').then(({ checkMissionProgress }) => {
+                const { missions, updateMissionProgress, cash, holdings, stocks } = useStore.getState();
+                checkMissionProgress('TICK', {}, missions, updateMissionProgress, {
+                    cash,
+                    holdings,
+                    stocks,
+                    cryptoHoldings: useCryptoStore.getState().cryptoHoldings,
+                    getTotalCryptoValue: useCryptoStore.getState().getTotalCryptoValue
+                });
+            });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [marketPhase, useMarketMoodStore.getState().cryptoFearGreedIndex]); // Re-bind on F&G change
+    }, []); // Empty dependency array = Runs once, never resets
 
-    // 3. NEWS & PHASE CONTROLLER
+    // 3. NEWS & PHASE CONTROLLER (Deprecated - Phase now driven by Store)
+    // We keep news generation but remove the local setMarketPhase calls
     const lastNewsTimeRef = useRef(Date.now());
     const { setActiveNews } = useStore();
 
     useEffect(() => {
         const checkNews = () => {
-            // Generate news every 2-4 minutes
             if (Date.now() - lastNewsTimeRef.current > 120000 + Math.random() * 120000) {
                 const { cryptos } = useCryptoStore.getState();
                 if (cryptos.length === 0) return;
@@ -227,27 +289,8 @@ export const useCryptoEngine = () => {
                     lastNewsTimeRef.current = Date.now();
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-                    // PHASE TRANSITION LOGIC
-                    // News drives the market phase!
-                    const { marketPhase } = useCryptoStore.getState();
-
-                    if (news.impact > 0.15) {
-                        // Massive Bullish News -> EUPHORIA
-                        setMarketPhase('EUPHORIA');
-                    } else if (news.impact > 0.05 && marketPhase !== 'EUPHORIA') {
-                        // Good News -> BULL_RUN
-                        setMarketPhase('BULL_RUN');
-                    } else if (news.impact < -0.15) {
-                        // Disaster News -> CORRECTION
-                        setMarketPhase('CORRECTION');
-                    } else if (news.impact < -0.05 && marketPhase === 'EUPHORIA') {
-                        // Bad news during euphoria -> CORRECTION
-                        setMarketPhase('CORRECTION');
-                    } else if (Math.abs(news.impact) < 0.02) {
-                        // Boring News -> ACCUMULATION or BEAR_WINTER
-                        if (Math.random() > 0.5) setMarketPhase('ACCUMULATION');
-                        else setMarketPhase('BEAR_WINTER');
-                    }
+                    // Note: Phase transitions are now handled by useMarketMoodStore's updateCryptoEngine
+                    // based on F&G and Hype, not directly by news here, though news affects F&G.
 
                     // Immediate Price Impact
                     const priceUpdates: Record<string, number> = {};
@@ -255,9 +298,9 @@ export const useCryptoEngine = () => {
                         if ((news.type === 'COMPANY' && news.symbol === c.symbol) ||
                             (news.type === 'SECTOR' && news.sector === 'Crypto')) {
 
-                            const jump = news.impact * (marketPhase === 'EUPHORIA' ? 1.5 : 1); // Amplify in euphoria
+                            const jump = news.impact * (cryptoCyclePhase === 'markup' ? 1.5 : 1);
                             priceUpdates[c.symbol] = c.price * (1 + jump);
-                            momentumRef.current[c.symbol] += jump * 0.5; // Kickstart momentum
+                            momentumRef.current[c.symbol] += jump * 0.5;
                         }
                     });
 
@@ -270,5 +313,5 @@ export const useCryptoEngine = () => {
 
         const newsInterval = setInterval(checkNews, 5000);
         return () => clearInterval(newsInterval);
-    }, []);
+    }, [cryptoCyclePhase]);
 };

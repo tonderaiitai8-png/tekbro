@@ -1,20 +1,23 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { zustandStorage, appStorage } from '../utils/storage';
-import { AppState as AppStateType, LeaderboardEntry, NewsEvent, DailyChallenges, NewsItem } from '../types';
+import { AppState as AppStateType, LeaderboardEntry, NewsEvent, DailyChallenges, NewsItem, Mission, TradingStats } from '../types';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { ACHIEVEMENT_CATALOG } from '../constants/achievements';
 import { ThemeType } from '../constants/theme';
 import { generateDailyChallenges, shouldResetChallenges } from '../utils/dailyChallenges';
 import { analytics } from '../utils/analytics';
-import { useCryptoStore } from './useCryptoStore';
+import { useCryptoStore, setMainStoreHelpers } from './useCryptoStore';
+
+const INITIAL_CASH = 1000000;
 
 interface AppState extends AppStateType {
     setActiveNews: (news: NewsEvent | null) => void;
     setMarketSentiment: (sentiment: number) => void;
     checkAndUnlockAchievements: () => void;
     toggleWatchlist: (symbol: string) => void;
+    initializeWatchlist: () => Promise<void>;
     updateChallengeProgress: (type: string, amount: number) => void;
     checkLoginStreak: () => number;
     updateLeaderboard: () => void;
@@ -24,7 +27,6 @@ interface AppState extends AppStateType {
     setCryptoOnboardingCompleted: (completed: boolean) => void;
     lastAchievementCheck: number;
 
-    // Missing actions from previous state
     setNews: (news: NewsItem[]) => void;
     addAlert: (alert: any) => void;
     removeAlert: (id: string) => void;
@@ -39,12 +41,26 @@ interface AppState extends AppStateType {
     dismissNews: (id: string) => void;
     setOnboardingCompleted: (completed: boolean) => void;
 
-    // Theme
+    addCash: (amount: number) => void;
+
     currentTheme: ThemeType;
     setTheme: (theme: ThemeType) => void;
-}
 
-const INITIAL_CASH = 1000000;
+    currency: string;
+    setCurrency: (currency: string) => void;
+
+    missions: Mission[];
+    setMissions: (missions: Mission[]) => void;
+    updateMissionProgress: (id: string, progress: number) => void;
+
+    activeMissionAlert: { title: string; xp: number } | null;
+    setActiveMissionAlert: (alert: { title: string; xp: number } | null) => void;
+
+    tradingStats: TradingStats;
+
+    levelUpNotification: { level: number; rewards: string[] } | null;
+    setLevelUpNotification: (notification: { level: number; rewards: string[] } | null) => void;
+}
 
 export const useStore = create<AppState>()(
     persist(
@@ -81,8 +97,57 @@ export const useStore = create<AppState>()(
             highScore: 0,
             onboardingCompleted: false,
             currentTheme: 'midnight',
+            currency: 'GBP',
+            missions: [],
+            activeMissionAlert: null,
+            levelUpNotification: null,
+            tradingStats: {
+                totalProfit: 0,
+                totalLoss: 0,
+                winStreak: 0,
+                currentWinStreak: 0,
+                maxGain: 0,
+                maxLoss: 0,
+                profitableTradesCount: 0,
+                totalTradesCount: 0
+            },
+
+            setLevelUpNotification: (notification) => set({ levelUpNotification: notification }),
+            setActiveMissionAlert: (alert) => set({ activeMissionAlert: alert }),
+
+            addCash: (amount) => set((state) => ({ cash: state.cash + amount })),
+
+            setMissions: (missions) => set({ missions }),
+
+            updateMissionProgress: (id, progress) => {
+                const { missions } = get();
+                const updatedMissions = missions.map(m => {
+                    if (m.id === id && m.status === 'ACTIVE') {
+                        const newProgress = m.progress + progress;
+                        const isComplete = newProgress >= m.target;
+
+                        if (isComplete) {
+                            get().addXp(m.reward.xp);
+                            if (m.reward.cash) {
+                                set(state => ({ cash: state.cash + m.reward.cash! }));
+                            }
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+                            // Trigger Mission Alert
+                            get().setActiveMissionAlert({ title: m.title, xp: m.reward.xp });
+
+                            return { ...m, progress: m.target, status: 'COMPLETED' as const };
+                        }
+                        return { ...m, progress: newProgress };
+                    }
+                    return m;
+                });
+                set({ missions: updatedMissions });
+            },
 
             setTheme: (theme) => set({ currentTheme: theme }),
+
+            setCurrency: (currency) => set({ currency }),
 
             setProfile: (username, avatar) => set({ username, avatar }),
 
@@ -110,7 +175,22 @@ export const useStore = create<AppState>()(
                     dailyChallenges: generateDailyChallenges(),
                     alerts: [],
                     activeNews: null,
-                    onboardingCompleted: false // Reset state
+                    onboardingCompleted: false, // Reset state
+                    currency: 'GBP',
+                    currentTheme: 'midnight',
+                    tradingStats: {
+                        totalProfit: 0,
+                        totalLoss: 0,
+                        winStreak: 0,
+                        currentWinStreak: 0,
+                        maxGain: 0,
+                        maxLoss: 0,
+                        profitableTradesCount: 0,
+                        totalTradesCount: 0
+                    },
+                    missions: [],
+                    activeMissionAlert: null,
+                    levelUpNotification: null
                 });
                 // Reset Crypto Store as well
                 useCryptoStore.getState().resetCrypto();
@@ -119,7 +199,7 @@ export const useStore = create<AppState>()(
             },
 
             buyStock: (symbol, quantity, price) => {
-                const { cash, holdings, trades, stocks } = get();
+                const { cash, holdings, trades, stocks, missions, updateMissionProgress } = get();
                 const cost = quantity * price;
 
                 if (cash >= cost) {
@@ -155,6 +235,17 @@ export const useStore = create<AppState>()(
                         get().updateChallengeProgress('sector', 1);
                     }
 
+                    // Check Mission Progress
+                    import('../utils/missionEngine').then(({ checkMissionProgress }) => {
+                        const { getTotalCryptoValue } = require('./useCryptoStore').useCryptoStore.getState();
+                        checkMissionProgress('BUY', { symbol, quantity, price }, missions, updateMissionProgress, {
+                            cash: get().cash,
+                            holdings: get().holdings,
+                            stocks: get().stocks,
+                            getTotalCryptoValue
+                        });
+                    });
+
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     get().checkAndUnlockAchievements();
                     analytics.trackTrade('BUY', symbol, quantity, price);
@@ -165,7 +256,7 @@ export const useStore = create<AppState>()(
             },
 
             sellStock: (symbol, quantity, price) => {
-                const { cash, holdings, trades } = get();
+                const { cash, holdings, trades, missions, updateMissionProgress } = get();
                 const currentHolding = holdings[symbol];
 
                 if (currentHolding && currentHolding.quantity >= quantity) {
@@ -200,6 +291,24 @@ export const useStore = create<AppState>()(
                         ]
                     });
 
+                    // Update Trading Stats
+                    const { tradingStats } = get();
+                    const isWin = profit > 0;
+                    const newCurrentWinStreak = isWin ? tradingStats.currentWinStreak + 1 : 0;
+
+                    const newStats = {
+                        totalProfit: isWin ? tradingStats.totalProfit + profit : tradingStats.totalProfit,
+                        totalLoss: !isWin ? tradingStats.totalLoss + Math.abs(profit) : tradingStats.totalLoss,
+                        winStreak: Math.max(tradingStats.winStreak, newCurrentWinStreak),
+                        currentWinStreak: newCurrentWinStreak,
+                        maxGain: Math.max(tradingStats.maxGain, pnlPercent),
+                        maxLoss: !isWin ? Math.max(tradingStats.maxLoss, Math.abs(pnlPercent)) : tradingStats.maxLoss,
+                        profitableTradesCount: isWin ? tradingStats.profitableTradesCount + 1 : tradingStats.profitableTradesCount,
+                        totalTradesCount: tradingStats.totalTradesCount + 1
+                    };
+
+                    set({ tradingStats: newStats });
+
                     // XP Logic
                     get().addXp(10);
                     if (profit > 0) {
@@ -210,6 +319,17 @@ export const useStore = create<AppState>()(
                     } else {
                         get().addXp(5);
                     }
+
+                    // Check Mission Progress
+                    import('../utils/missionEngine').then(({ checkMissionProgress }) => {
+                        const { getTotalCryptoValue } = require('./useCryptoStore').useCryptoStore.getState();
+                        checkMissionProgress('SELL', { symbol, quantity, price, pnl: profit, pnlPercent }, missions, updateMissionProgress, {
+                            cash: get().cash,
+                            holdings: get().holdings,
+                            stocks: get().stocks,
+                            getTotalCryptoValue
+                        });
+                    });
 
                     get().updateChallengeProgress('volume', 1);
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -245,37 +365,40 @@ export const useStore = create<AppState>()(
 
             addXp: (amount) => {
                 const { xp, level } = get();
-                const newXp = xp + amount;
-                const nextLevelXp = Math.floor(1000 * Math.pow(level, 1.5));
+                if (!Number.isFinite(amount) || amount <= 0) return;
 
-                if (newXp >= nextLevelXp) {
-                    set({ xp: newXp, level: level + 1 });
+                let newXp = xp + amount;
+                if (!Number.isFinite(newXp)) newXp = xp; // Safety fallback
+
+                let newLevel = level;
+                let leveledUp = false;
+                let loopCount = 0;
+
+                // Handle multiple level ups (with safety break)
+                while (loopCount < 100) { // Max 100 levels at once to prevent freeze
+                    const nextLevelXp = Math.floor(1000 * Math.pow(newLevel, 1.5));
+                    if (newXp >= nextLevelXp) {
+                        newLevel++;
+                        leveledUp = true;
+                    } else {
+                        break;
+                    }
+                    loopCount++;
+                }
+
+                if (leveledUp) {
+                    set({ xp: newXp, level: newLevel });
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    // Alert.alert('🎉 Level Up!', `You reached Level ${level + 1}!`);
+
+                    // Trigger non-blocking UI
+                    set({
+                        levelUpNotification: {
+                            level: newLevel,
+                            rewards: ['New Features Unlocked', 'XP Bonus'] // Placeholder rewards
+                        }
+                    });
                 } else {
                     set({ xp: newXp });
-                }
-            },
-
-            unlockAchievement: (id) => {
-                const { achievements } = get();
-                const achievement = achievements.find((a) => a.id === id);
-
-                if (achievement && !achievement.unlocked) {
-                    set({
-                        achievements: achievements.map((a) =>
-                            a.id === id ? { ...a, unlocked: true } : a
-                        ),
-                    });
-
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert(
-                        `${achievement.icon} Achievement Unlocked!`,
-                        achievement.title,
-                        [{ text: 'Nice!', style: 'default' }]
-                    );
-                    get().addXp(achievement.xpReward);
-                    analytics.trackAchievementUnlocked(achievement.id, achievement.tier, achievement.xpReward);
                 }
             },
 
@@ -289,6 +412,7 @@ export const useStore = create<AppState>()(
 
                 // Run calculations in a non-blocking way if possible, but for now just optimize the loop
                 // Calculate metrics ONCE
+                // Calculate metrics ONCE (Optimized)
                 const portfolioValue = Object.values(holdings).reduce((sum, h) => {
                     const stock = stocks.find(s => s.symbol === h.symbol);
                     return sum + (h.quantity * (stock?.price || 0));
@@ -296,17 +420,41 @@ export const useStore = create<AppState>()(
 
                 const totalEquity = cash + portfolioValue; // + crypto value ideally
 
-                const sellTrades = trades.filter(t => t.type === 'SELL');
-                const profitableTrades = sellTrades.filter(t => (t as any).pnl > 0);
-                const winRate = sellTrades.length > 0 ? (profitableTrades.length / sellTrades.length) * 100 : 0;
+                // Use cached stats if available, otherwise fallback (migration)
+                let { tradingStats } = get();
+                if (!tradingStats) {
+                    // Migration logic: Calculate from scratch if missing
+                    const sellTrades = trades.filter(t => t.type === 'SELL');
+                    const profitableTrades = sellTrades.filter(t => (t as any).pnl > 0);
 
-                let winStreak = 0;
-                for (const trade of sellTrades) {
-                    if ((trade as any).pnl > 0) winStreak++;
-                    else break;
+                    let winStreak = 0;
+                    let currentWinStreak = 0;
+                    for (const trade of sellTrades) {
+                        if ((trade as any).pnl > 0) {
+                            currentWinStreak++;
+                            winStreak = Math.max(winStreak, currentWinStreak);
+                        } else {
+                            currentWinStreak = 0;
+                        }
+                    }
+
+                    tradingStats = {
+                        totalProfit: sellTrades.reduce((sum, t) => sum + Math.max(0, (t as any).pnl || 0), 0),
+                        totalLoss: sellTrades.reduce((sum, t) => sum + Math.abs(Math.min(0, (t as any).pnl || 0)), 0),
+                        winStreak,
+                        currentWinStreak,
+                        maxGain: sellTrades.reduce((max, t) => Math.max(max, (t as any).pnlPercent || 0), 0),
+                        maxLoss: sellTrades.reduce((max, t) => {
+                            const pnlP = (t as any).pnlPercent || 0;
+                            return pnlP < 0 ? Math.max(max, Math.abs(pnlP)) : max;
+                        }, 0),
+                        profitableTradesCount: profitableTrades.length,
+                        totalTradesCount: sellTrades.length
+                    };
+                    set({ tradingStats });
                 }
 
-                const maxGainPercent = sellTrades.reduce((max, t) => Math.max(max, (t as any).pnlPercent || 0), 0);
+                const winRate = tradingStats.totalTradesCount > 0 ? (tradingStats.profitableTradesCount / tradingStats.totalTradesCount) * 100 : 0;
                 const uniqueHoldings = Object.keys(holdings).length;
 
                 let maxConcentration = 0;
@@ -323,21 +471,6 @@ export const useStore = create<AppState>()(
 
                 const maxTradeVal = trades.reduce((max, t) => Math.max(max, t.quantity * t.price), 0);
 
-                const maxLoss = sellTrades.reduce((max, t) => {
-                    const pnlP = (t as any).pnlPercent || 0;
-                    return pnlP < 0 ? Math.max(max, Math.abs(pnlP)) : max;
-                }, 0);
-
-                const totalProfit = sellTrades.reduce((sum, t) => {
-                    const pnl = (t as any).pnl || 0;
-                    return pnl > 0 ? sum + pnl : sum;
-                }, 0);
-
-                const totalLoss = sellTrades.reduce((sum, t) => {
-                    const pnl = (t as any).pnl || 0;
-                    return pnl < 0 ? sum + Math.abs(pnl) : sum;
-                }, 0);
-
                 // Batch updates
                 const newlyUnlockedIds: string[] = [];
                 const updatedAchievements = achievements.map((ach) => {
@@ -349,17 +482,17 @@ export const useStore = create<AppState>()(
                     switch (type) {
                         case 'netWorth': progress = totalEquity; break;
                         case 'trades': progress = trades.length; break;
-                        case 'profit_trade': progress = profitableTrades.length > 0 ? 1 : 0; break;
-                        case 'gain_percent': progress = maxGainPercent; break;
-                        case 'win_streak': progress = winStreak; break;
+                        case 'profit_trade': progress = tradingStats.profitableTradesCount > 0 ? 1 : 0; break;
+                        case 'gain_percent': progress = tradingStats.maxGain; break;
+                        case 'win_streak': progress = tradingStats.winStreak; break;
                         case 'win_rate': progress = trades.length >= 50 ? winRate : 0; break;
                         case 'diversity': progress = uniqueHoldings; break;
                         case 'concentration': progress = maxConcentration; break;
                         case 'trade_size': progress = maxTradeVal; break;
                         case 'low_cash': progress = cash <= value ? value : 0; break;
-                        case 'loss_percent': progress = maxLoss; break;
-                        case 'profit_total': progress = totalProfit; break;
-                        case 'loss_total': progress = totalLoss; break;
+                        case 'loss_percent': progress = tradingStats.maxLoss; break;
+                        case 'profit_total': progress = tradingStats.totalProfit; break;
+                        case 'loss_total': progress = tradingStats.totalLoss; break;
                         case 'login_streak': progress = get().loginStreak; break;
                         case 'crypto_own': progress = 0; break; // Placeholder
                     }
@@ -406,14 +539,36 @@ export const useStore = create<AppState>()(
                 }
             },
 
-            toggleWatchlist: (symbol) => {
+            toggleWatchlist: async (symbol) => {
                 const { watchlist } = get();
-                if (watchlist.includes(symbol)) {
+                const isWatched = watchlist.includes(symbol);
+
+                // Optimistic update
+                if (isWatched) {
                     set({ watchlist: watchlist.filter(s => s !== symbol) });
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    // Persist removal
+                    import('../src/features/watchlist/watchlistService').then(({ WatchlistService }) => {
+                        WatchlistService.removeFromWatchlist(symbol).catch(console.error);
+                    });
                 } else {
                     set({ watchlist: [...watchlist, symbol] });
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    // Persist addition (Defaulting to STOCK for now, logic might need to distinguish type)
+                    import('../src/features/watchlist/watchlistService').then(({ WatchlistService }) => {
+                        // TODO: Determine type dynamically or pass it as argument
+                        WatchlistService.addToWatchlist(symbol, 'STOCK').catch(console.error);
+                    });
+                }
+            },
+
+            initializeWatchlist: async () => {
+                try {
+                    const { WatchlistService } = await import('../src/features/watchlist/watchlistService');
+                    const items = await WatchlistService.getWatchlist();
+                    set({ watchlist: items.map(i => i.symbol) });
+                } catch (error) {
+                    console.error('Failed to load watchlist:', error);
                 }
             },
 
@@ -568,23 +723,59 @@ export const useStore = create<AppState>()(
 
             setCryptoOnboardingCompleted: (completed) => set({ cryptoOnboardingCompleted: completed }),
 
-            setOnboardingCompleted: (completed) => {
-                set({ onboardingCompleted: completed });
-                if (completed) {
-                    appStorage.setAsync('onboarding_completed', 'true');
-                } else {
-                    appStorage.setAsync('onboarding_completed', 'false');
-                }
-            },
+            setOnboardingCompleted: (completed) => set({ onboardingCompleted: completed }),
+
+            unlockAchievement: (id) => {
+                const { achievements } = get();
+                const updated = achievements.map(a => a.id === id ? { ...a, unlocked: true } : a);
+                set({ achievements: updated });
+            }
         }),
         {
-            name: 'paper-trader-storage',
+            name: 'app-storage',
             storage: createJSONStorage(() => zustandStorage),
             onRehydrateStorage: () => (state) => {
                 if (state) {
-                    state.syncAchievements();
+                    // Ensure missions is initialized
+                    if (!state.missions) state.missions = [];
+                    // Ensure tradingStats is initialized
+                    if (!state.tradingStats) {
+                        state.tradingStats = {
+                            totalProfit: 0,
+                            totalLoss: 0,
+                            winStreak: 0,
+                            currentWinStreak: 0,
+                            maxGain: 0,
+                            maxLoss: 0,
+                            profitableTradesCount: 0,
+                            totalTradesCount: 0
+                        };
+                    }
                 }
+            },
+            partialize: (state) => {
+                // Exclude transient UI states from persistence
+                const {
+                    activeNews,
+                    activeMissionAlert,
+                    levelUpNotification,
+                    ...persistedState
+                } = state;
+                return persistedState;
             }
         }
     )
+);
+
+// Initialize Crypto Store Helpers
+// This wires up the two stores so Crypto can access Cash/XP/Achievements
+setMainStoreHelpers(
+    () => useStore.getState().cash,
+    (amount) => useStore.setState({ cash: amount }),
+    (amount) => useStore.getState().addXp(amount),
+    (id) => useStore.getState().unlockAchievement(id),
+    () => useStore.getState().checkAndUnlockAchievements(),
+    (type, amount) => useStore.getState().updateChallengeProgress(type, amount),
+    () => useStore.getState().missions,
+    (id, progress) => useStore.getState().updateMissionProgress(id, progress)
 );

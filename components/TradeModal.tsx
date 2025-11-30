@@ -7,6 +7,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } fr
 import * as Haptics from 'expo-haptics';
 import { FONTS, SPACING, RADIUS } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
+import { formatCurrency } from '../utils/currency';
 
 interface TradeModalProps {
     visible: boolean;
@@ -115,7 +116,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
                                         </View>
                                         <View>
                                             <Text style={styles.headerTitle}>{activeTradeType} {symbol}</Text>
-                                            <Text style={styles.headerSubtitle}>£{price.toFixed(2)}</Text>
+                                            <Text style={styles.headerSubtitle}>{formatCurrency(price)}</Text>
                                         </View>
                                     </View>
                                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -203,14 +204,14 @@ export const TradeModal: React.FC<TradeModalProps> = ({
                                 <View style={[styles.breakdown, { backgroundColor: theme.bgSubtle }]}>
                                     <View style={styles.breakdownRow}>
                                         <Text style={[styles.breakdownLabel, { color: theme.textSub }]}>Total Cost</Text>
-                                        <Text style={[styles.breakdownValue, { color: theme.text }]}>£{totalCost.toFixed(2)}</Text>
+                                        <Text style={[styles.breakdownValue, { color: theme.text }]}>{formatCurrency(totalCost)}</Text>
                                     </View>
                                     <View style={styles.breakdownRow}>
                                         <Text style={[styles.breakdownLabel, { color: theme.textSub }]}>
                                             {activeTradeType === 'BUY' ? 'Available Cash' : 'Available Shares'}
                                         </Text>
                                         <Text style={[styles.breakdownValue, { color: theme.text }]}>
-                                            {activeTradeType === 'BUY' ? `£${cash.toFixed(2)}` : ownedShares}
+                                            {activeTradeType === 'BUY' ? formatCurrency(cash) : ownedShares}
                                         </Text>
                                     </View>
                                     {!canAfford && (

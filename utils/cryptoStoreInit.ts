@@ -15,7 +15,9 @@ export const initializeCryptoStore = () => {
         (amount: number) => useStore.getState().addXp(amount),
         (id: string) => useStore.getState().unlockAchievement(id),
         () => useStore.getState().checkAndUnlockAchievements(),
-        (type: string, amount: number) => useStore.getState().updateChallengeProgress(type, amount)
+        (type: string, amount: number) => useStore.getState().updateChallengeProgress(type, amount),
+        () => useStore.getState().missions,
+        (id: string, progress: number) => useStore.getState().updateMissionProgress(id, progress)
     );
 
     // Initialize cryptos if not already done

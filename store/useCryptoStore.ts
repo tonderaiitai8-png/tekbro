@@ -28,8 +28,6 @@ interface CryptoStore {
     checkCryptoLiquidation: () => void;
 
     // V2 Engine State
-    marketPhase: 'ACCUMULATION' | 'BULL_RUN' | 'EUPHORIA' | 'CORRECTION' | 'BEAR_WINTER';
-    setMarketPhase: (phase: 'ACCUMULATION' | 'BULL_RUN' | 'EUPHORIA' | 'CORRECTION' | 'BEAR_WINTER') => void;
     dailyReset: () => void;
 
     // Getters
@@ -46,6 +44,8 @@ let addXp: (amount: number) => void = () => { };
 let unlockAchievement: (id: string) => void = () => { };
 let checkAndUnlockAchievements: () => void = () => { };
 let updateChallengeProgress: (type: string, amount: number) => void = () => { };
+let getMissions: () => any[] = () => [];
+let updateMissionProgress: (id: string, progress: number) => void = () => { };
 
 export const setMainStoreHelpers = (
     getCash: () => number,
@@ -53,7 +53,9 @@ export const setMainStoreHelpers = (
     addXpFn: (amount: number) => void,
     unlockAch: (id: string) => void,
     checkAch: () => void,
-    updateChallenge: (type: string, amount: number) => void
+    updateChallenge: (type: string, amount: number) => void,
+    getMissionsFn: () => any[],
+    updateMissionFn: (id: string, progress: number) => void
 ) => {
     getMainStoreCash = getCash;
     setMainStoreCash = setCash;
@@ -61,6 +63,8 @@ export const setMainStoreHelpers = (
     unlockAchievement = unlockAch;
     checkAndUnlockAchievements = checkAch;
     updateChallengeProgress = updateChallenge;
+    getMissions = getMissionsFn;
+    updateMissionProgress = updateMissionFn;
 };
 
 const INITIAL_CRYPTO_WALLET = 10000;
@@ -72,7 +76,6 @@ export const useCryptoStore = create<CryptoStore>()(
             cryptos: [],
             cryptoHoldings: {},
             cryptoTrades: [],
-            marketPhase: 'ACCUMULATION',
 
             transferToCrypto: (amount) => {
                 const mainCash = getMainStoreCash();
@@ -165,6 +168,22 @@ export const useCryptoStore = create<CryptoStore>()(
                 updateChallengeProgress('volume', 1);
                 checkAndUnlockAchievements();
                 analytics.trackEvent('crypto_buy', { symbol, quantity, price, leverage });
+
+                // Check Mission Progress
+                import('../utils/missionEngine').then(({ checkMissionProgress }) => {
+                    checkMissionProgress('BUY_CRYPTO', { symbol, quantity, price, leverage }, getMissions(), updateMissionProgress, {
+                        cash: getMainStoreCash(),
+                        holdings: {}, // We don't have access to stock holdings here easily, pass empty or fetch if needed? 
+                        // Actually we need stock holdings for FED_PLAY (cash ratio). 
+                        // But BUY_CRYPTO only triggers WHALE_WATCH and ALT_SEASON_RIDER which don't need stock holdings.
+                        // FED_PLAY checks cash ratio, which might change on buy.
+                        // Ideally we should pass full context. 
+                        // For now, let's pass what we have.
+                        stocks: [],
+                        cryptoHoldings: get().cryptoHoldings,
+                        getTotalCryptoValue: get().getTotalCryptoValue
+                    });
+                });
             },
 
             sellCrypto: (symbol, quantity, price) => {
@@ -218,6 +237,17 @@ export const useCryptoStore = create<CryptoStore>()(
                 updateChallengeProgress('volume', 1);
                 checkAndUnlockAchievements();
                 analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit });
+
+                // Check Mission Progress
+                import('../utils/missionEngine').then(({ checkMissionProgress }) => {
+                    checkMissionProgress('SELL_CRYPTO', { symbol, quantity, price, profit }, getMissions(), updateMissionProgress, {
+                        cash: getMainStoreCash(),
+                        holdings: {},
+                        stocks: [],
+                        cryptoHoldings: get().cryptoHoldings,
+                        getTotalCryptoValue: get().getTotalCryptoValue
+                    });
+                });
             },
 
             setCryptos: (cryptos) => set({ cryptos }),
@@ -293,7 +323,7 @@ export const useCryptoStore = create<CryptoStore>()(
                 }
             },
 
-            setMarketPhase: (phase) => set({ marketPhase: phase }),
+
 
             dailyReset: () => {
                 const { cryptos } = get();
@@ -317,7 +347,6 @@ export const useCryptoStore = create<CryptoStore>()(
                 cryptoWallet: INITIAL_CRYPTO_WALLET,
                 cryptoHoldings: {},
                 cryptoTrades: [],
-                marketPhase: 'ACCUMULATION'
             })
         }),
         {

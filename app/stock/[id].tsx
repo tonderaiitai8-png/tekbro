@@ -9,7 +9,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import { useStore } from '../../store/useStore';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
-import { MiniChart } from '../../components/MiniChart';
+import { InteractiveChart } from '../../components/InteractiveChart';
 import { TradeModal } from '../../components/TradeModal';
 import { playSound } from '../../utils/sounds';
 
@@ -141,30 +141,15 @@ export default function StockDetailScreen() {
                         </View>
                     </View>
 
-                    <View style={styles.priceContainer}>
-                        <Text style={[styles.price, { color: theme.text }]}>£{stock.price.toFixed(2)}</Text>
-                        <View style={[styles.changeBadge, { backgroundColor: isPositive ? theme.positive + '20' : theme.negative + '20' }]}>
-                            {isPositive ? <TrendingUp size={16} color={theme.positive} /> : <TrendingDown size={16} color={theme.negative} />}
-                            <Text style={[styles.changeText, { color: isPositive ? theme.positive : theme.negative }]}>
-                                {priceChangePercent.toFixed(2)}%
-                            </Text>
-                        </View>
-                    </View>
                 </View>
 
-                {/* Chart */}
-                <View style={[styles.chartCard, { borderColor: theme.border }]}>
-                    <LinearGradient
-                        colors={getGradientColors()}
-                        style={styles.chartBackground}
-                    >
-                        <MiniChart
-                            data={stock.history}
-                            width={320}
-                            height={160}
-                            color={isPositive ? theme.primary : theme.negative}
-                        />
-                    </LinearGradient>
+                {/* Interactive Chart */}
+                <View style={[styles.chartCard, { borderColor: theme.border, backgroundColor: theme.bgElevated }]}>
+                    <InteractiveChart
+                        data={stock.history}
+                        height={280}
+                        color={isPositive ? theme.primary : theme.negative}
+                    />
                 </View>
 
                 {/* Stats Grid */}
@@ -357,10 +342,10 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.lg,
         overflow: 'hidden',
         borderWidth: 1,
+        paddingVertical: SPACING.md,
     },
     chartBackground: {
-        padding: SPACING.lg,
-        alignItems: 'center',
+        // Removed as we are using InteractiveChart container
     },
     statsGrid: {
         flexDirection: 'row',

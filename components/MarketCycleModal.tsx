@@ -62,6 +62,7 @@ export const MarketCycleModal = ({
 }: MarketCycleModalProps) => {
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
     const opacityAnim = useRef(new Animated.Value(0)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current; // Breathing effect
 
     const cycle = CYCLES[phase] || CYCLES.accumulation;
 
@@ -79,6 +80,23 @@ export const MarketCycleModal = ({
                     useNativeDriver: true,
                 })
             ]).start();
+
+            // Start Breathing Animation
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.05,
+                        duration: 2000, // Slower breath
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 2000,
+                        useNativeDriver: true,
+                    })
+                ])
+            ).start();
+
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         } else {
             scaleAnim.setValue(0.9);
@@ -130,14 +148,24 @@ export const MarketCycleModal = ({
 
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                            {/* Current Phase Banner */}
-                            <LinearGradient
-                                colors={[`${cycle.color}22`, `${cycle.color}05`]}
-                                style={[styles.phaseBanner, { borderColor: `${cycle.color}44` }]}
-                            >
-                                <Text style={[styles.phaseLabel, { color: cycle.color }]}>{cycle.label.toUpperCase()}</Text>
-                                <Text style={styles.phaseDesc}>{cycle.description}</Text>
-                            </LinearGradient>
+                            {/* Current Phase Banner (Fluid) */}
+                            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                                <LinearGradient
+                                    colors={[`${cycle.color}44`, `${cycle.color}11`]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={[styles.phaseBanner, { borderColor: `${cycle.color}66` }]}
+                                >
+                                    <View style={styles.phaseHeader}>
+                                        <Activity size={32} color={cycle.color} />
+                                        <View>
+                                            <Text style={[styles.phaseLabel, { color: cycle.color }]}>{cycle.label.toUpperCase()}</Text>
+                                            <Text style={styles.phaseSub}>Current Market Phase</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.phaseDesc}>{cycle.description}</Text>
+                                </LinearGradient>
+                            </Animated.View>
 
                             {/* Macro Metrics */}
                             <Text style={styles.sectionTitle}>{type === 'crypto' ? 'ON-CHAIN METRICS' : 'MACRO ECONOMICS'}</Text>
@@ -255,16 +283,39 @@ const styles = StyleSheet.create({
         padding: SPACING.lg,
     },
     phaseBanner: {
-        padding: SPACING.lg,
-        borderRadius: RADIUS.lg,
+        padding: SPACING.xl,
+        borderRadius: RADIUS.xl,
         borderWidth: 1,
         marginBottom: SPACING.xl,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.30,
+        shadowRadius: 4.65,
+        elevation: 8,
+    },
+    phaseHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.md,
+        marginBottom: SPACING.md,
     },
     phaseLabel: {
-        fontSize: 24,
+        fontSize: 28,
         fontFamily: FONTS.bold,
-        marginBottom: SPACING.xs,
         letterSpacing: 1,
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10
+    },
+    phaseSub: {
+        fontSize: 12,
+        fontFamily: FONTS.medium,
+        color: 'rgba(255,255,255,0.5)',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
     },
     phaseDesc: {
         fontSize: 14,

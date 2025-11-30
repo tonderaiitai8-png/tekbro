@@ -6,6 +6,7 @@ import { X, ArrowUpRight, ArrowDownLeft, History } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Trade } from '../types';
 import { HapticPatterns } from '../utils/haptics';
+import { formatCurrency } from '../utils/currency';
 
 interface CryptoHistoryModalProps {
     visible: boolean;
@@ -83,11 +84,11 @@ export const CryptoHistoryModal: React.FC<CryptoHistoryModalProps> = ({
                                             </View>
                                             <View style={styles.amountContainer}>
                                                 <Text style={[styles.transactionAmount, { color: trade.type === 'BUY' ? COLORS.negative : COLORS.positive }]}>
-                                                    {trade.type === 'BUY' ? '-' : '+'}£{(trade.quantity * trade.price).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    {trade.type === 'BUY' ? '-' : '+'}{formatCurrency(trade.quantity * trade.price)}
                                                 </Text>
                                                 {trade.pnl !== undefined && (
                                                     <Text style={[styles.pnlText, { color: trade.pnl >= 0 ? COLORS.positive : COLORS.negative }]}>
-                                                        {trade.pnl >= 0 ? '+' : ''}£{trade.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                        {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
                                                     </Text>
                                                 )}
                                             </View>

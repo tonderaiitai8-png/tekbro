@@ -7,9 +7,11 @@ import * as Haptics from 'expo-haptics';
 import { FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Crypto } from '../types';
 import { useCryptoStore } from '../store/useCryptoStore';
+import { useStore } from '../store/useStore';
 import { HapticPatterns } from '../utils/haptics';
 import { MiniChart } from './MiniChart';
 import { useTheme } from '../hooks/useTheme';
+import { formatCurrency } from '../utils/currency';
 
 interface CryptoCardProps {
     crypto: Crypto;
@@ -18,10 +20,9 @@ interface CryptoCardProps {
 const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
     const router = useRouter();
     const { theme } = useTheme();
-    // OPTIMIZATION: Select only what we need
-    // Note: We might want a separate watchlist for crypto later, or use the same one
-    // For now, let's assume we might add crypto watchlist support later
-    const isWatchlisted = false;
+    // Watchlist Logic
+    const isWatchlisted = useStore(React.useCallback(state => state.watchlist.includes(crypto.symbol), [crypto.symbol]));
+    const toggleWatchlist = useStore(state => state.toggleWatchlist);
 
     // Animation for press effect
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -51,17 +52,24 @@ const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
         }).start();
     };
 
+    const handleToggleWatchlist = (e: any) => {
+        e.stopPropagation();
+        toggleWatchlist(crypto.symbol);
+        HapticPatterns.light();
+    };
+
     const getGradientColors = (): [string, string] => {
-        // Crypto Style: Deep Purple/Indigo/Violet
+        // Crypto Style: Darker Theme Accent
         if (isPositive) {
-            return ['rgba(74, 0, 224, 0.8)', 'rgba(142, 45, 226, 0.4)']; // Purple/Violet
+            // Use theme.accent but darker for differentiation
+            return [`${theme.accent}CC`, `${theme.accent}66`];
         } else {
             return ['rgba(224, 0, 74, 0.8)', 'rgba(226, 45, 100, 0.4)']; // Pink/Red
         }
     };
 
     const getBorderColor = () => {
-        if (isPositive) return '#8E2DE2'; // Violet
+        if (isPositive) return theme.accent; // Theme Accent
         return '#FF4444'; // Red
     };
 
@@ -102,6 +110,13 @@ const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
                         <View style={styles.centerSection}>
                             <View style={styles.nameRow}>
                                 <Text style={styles.symbol}>{crypto.symbol}</Text>
+                                <TouchableOpacity onPress={handleToggleWatchlist}>
+                                    <Star
+                                        size={14}
+                                        color={isWatchlisted ? '#FFD700' : 'rgba(255,255,255,0.3)'}
+                                        fill={isWatchlisted ? '#FFD700' : 'transparent'}
+                                    />
+                                </TouchableOpacity>
                             </View>
                             <Text style={styles.companyName} numberOfLines={1}>
                                 {crypto.name}
@@ -124,10 +139,7 @@ const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
                         {/* Right: Price & Action */}
                         <View style={styles.rightSection}>
                             <Text style={styles.price}>
-                                £{crypto.price.toLocaleString(undefined, {
-                                    minimumFractionDigits: crypto.price < 1 ? 4 : 2,
-                                    maximumFractionDigits: crypto.price < 1 ? 4 : 2
-                                })}
+                                {formatCurrency(crypto.price)}
                             </Text>
                             <View style={[styles.changeBadge, { backgroundColor: isPositive ? 'rgba(0,255,255,0.1)' : 'rgba(255,0,0,0.1)' }]}>
                                 {isPositive ? <TrendingUp size={12} color="#00FF00" /> : <TrendingDown size={12} color="#FF4444" />}

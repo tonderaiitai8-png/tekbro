@@ -8,6 +8,7 @@ import { Crypto } from '../types';
 import { useCryptoStore } from '../store/useCryptoStore';
 import { MiniChart } from './MiniChart';
 import { CryptoTooltip } from './CryptoTooltip';
+import { formatCurrency } from '../utils/currency';
 
 interface CryptoDetailModalProps {
     visible: boolean;
@@ -133,7 +134,7 @@ export const CryptoDetailModal: React.FC<CryptoDetailModalProps> = ({
                                 <View style={styles.headerContent}>
                                     <View>
                                         <Text style={styles.symbol}>{crypto.symbol}</Text>
-                                        <Text style={styles.price}>£{crypto.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                        <Text style={styles.price}>{formatCurrency(crypto.price)}</Text>
                                     </View>
                                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                                         <X size={20} color="#FFF" />
@@ -197,7 +198,7 @@ export const CryptoDetailModal: React.FC<CryptoDetailModalProps> = ({
                                             <View style={styles.liquidationWarning}>
                                                 <AlertTriangle size={12} color={COLORS.warning} />
                                                 <Text style={styles.liquidationText}>
-                                                    Liquidation at £{liquidationPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    Liquidation at {formatCurrency(liquidationPrice)}
                                                 </Text>
                                             </View>
                                         )}
@@ -208,7 +209,7 @@ export const CryptoDetailModal: React.FC<CryptoDetailModalProps> = ({
                                 <View style={styles.inputSection}>
                                     <Text style={styles.sectionLabel}>AMOUNT (GBP)</Text>
                                     <View style={styles.inputContainer}>
-                                        <Text style={styles.currencyPrefix}>£</Text>
+                                        {/* Removed hardcoded symbol, input placeholder handles it or we can add dynamic symbol if needed */}
                                         <TextInput
                                             style={styles.input}
                                             value={amount}
@@ -245,13 +246,13 @@ export const CryptoDetailModal: React.FC<CryptoDetailModalProps> = ({
                                     </View>
                                     <View style={styles.summaryRow}>
                                         <Text style={styles.summaryLabel}>Margin Required</Text>
-                                        <Text style={styles.summaryValue}>£{totalCost.toFixed(2)}</Text>
+                                        <Text style={styles.summaryValue}>{formatCurrency(totalCost)}</Text>
                                     </View>
                                     <View style={styles.summaryRow}>
                                         <Text style={styles.summaryLabel}>Available</Text>
                                         <Text style={styles.summaryValue}>
                                             {tradeType === 'BUY'
-                                                ? `£${cryptoWallet.toFixed(2)}`
+                                                ? formatCurrency(cryptoWallet)
                                                 : `${ownedQuantity.toFixed(6)} ${crypto.symbol}`}
                                         </Text>
                                     </View>

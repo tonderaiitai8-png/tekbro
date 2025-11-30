@@ -2,9 +2,11 @@ import { Tabs } from 'expo-router';
 import { Home, TrendingUp, Settings, Trophy, Zap, Clock } from 'lucide-react-native';
 import { View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { useMissionEngine } from '../../hooks/useMissionEngine';
 
 export default function TabLayout() {
     const { theme } = useTheme();
+    useMissionEngine(); // Start Mission Engine
 
     return (
         <Tabs

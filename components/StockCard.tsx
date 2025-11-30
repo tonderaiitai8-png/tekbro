@@ -20,6 +20,7 @@ import { Stock } from '../types';
 import { useStore } from '../store/useStore';
 import { HapticPatterns } from '../utils/haptics';
 import { useTheme } from '../hooks/useTheme';
+import { formatCurrency } from '../utils/currency';
 
 interface StockCardProps {
     stock: Stock;
@@ -206,10 +207,7 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
                         {/* Right: Price & Action */}
                         <View style={styles.rightSection}>
                             <Text style={styles.price}>
-                                £{stock.price.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                })}
+                                {formatCurrency(stock.price)}
                             </Text>
                             <View style={[styles.changeBadge, { backgroundColor: isPositive ? theme.primary + '20' : 'rgba(239, 68, 68, 0.2)' }]}>
                                 {isPositive ? <TrendingUp size={12} color={theme.primary} /> : <TrendingDown size={12} color="#EF4444" />}

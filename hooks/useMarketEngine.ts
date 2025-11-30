@@ -43,7 +43,10 @@ export const useMarketEngine = () => {
         interestRate,
         gdpGrowth,
         inflation,
-        setMacroMetrics
+        setMacroMetrics,
+        activeEvents,
+        decayEvents,
+        triggerEvent
     } = useMarketMoodStore();
 
     const lastNewsTimeRef = useRef(Date.now());
@@ -69,6 +72,9 @@ export const useMarketEngine = () => {
                 }
             });
         }
+
+        // Purely In-House Simulation - No External API Hydration
+        // Initial prices are set by initializeStocks() in constants/stockData.ts
     }, []);
 
     // 2. MACRO SIMULATION LOOP (Every 10s)
@@ -99,15 +105,37 @@ export const useMarketEngine = () => {
                 inflation: Number(newInflation.toFixed(2))
             });
 
-            // Calculate Average Market Return for Cycle Logic
-            const currentStocks = useStore.getState().stocks;
-            const avgReturn = currentStocks.length > 0 ? currentStocks.reduce((sum, s) => {
-                const startPrice = s.history.length > 0 ? s.history[0].value : s.price;
-                return sum + ((s.price - startPrice) / startPrice);
-            }, 0) / currentStocks.length : 0;
+            // --- EVENT SIMULATION ---
+            const { tickCount, setEarningsSeason, setFedMeeting, fedMeeting, earningsSeason } = useMarketMoodStore.getState();
 
-            // TRIGGER CYCLE TRANSITION CHECK
-            // checkCycleTransition(avgReturn); // Deprecated in V2 Engine
+            // 1. Earnings Season (Every 300 ticks ~ 5 mins)
+            if (tickCount % 300 === 0 && !earningsSeason) {
+                setEarningsSeason(true);
+                // Notification handled by News Engine
+            } else if (earningsSeason && tickCount % 300 === 60) {
+                setEarningsSeason(false); // End after 60 ticks
+            }
+
+            // 2. Fed Meetings (Every 600 ticks ~ 10 mins)
+            if (tickCount % 600 === 550) {
+                setFedMeeting('scheduled'); // Schedule 50 ticks before
+            } else if (tickCount % 600 === 0 && fedMeeting === 'scheduled') {
+                // EXECUTE FED MEETING
+                const isHawkish = inflation > 2.5; // Hawkish if inflation is high
+                setFedMeeting(isHawkish ? 'hawkish' : 'dovish');
+
+                // Immediate Impact
+                if (isHawkish) {
+                    newRate += 0.25; // Hike
+                    setMacroMetrics({ interestRate: newRate, gdpGrowth: newGDP, inflation: newInflation });
+                } else {
+                    newRate -= 0.25; // Cut
+                    setMacroMetrics({ interestRate: newRate, gdpGrowth: newGDP, inflation: newInflation });
+                }
+
+                // Reset status after a bit
+                setTimeout(() => setFedMeeting('none'), 30000);
+            }
 
         }, 10000);
 
@@ -118,6 +146,80 @@ export const useMarketEngine = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             const currentStocks = useStore.getState().stocks;
+            const {
+                fearGreedIndex,
+                updateMarketEngine,
+                tick,
+                activeEvents,
+                decayEvents,
+                triggerEvent
+            } = useMarketMoodStore.getState();
+
+            // Decay Events
+            if (activeEvents.length > 0) {
+                decayEvents();
+            }
+
+            // Random Event Generation (Black Swan / Market Shifts)
+            if (Math.random() < 0.001) { // 0.1% chance per tick
+                const eventTypes = ['BULL_RUN', 'CRASH', 'TECH_BOOM', 'LIQUIDITY_CRISIS'] as const;
+                const type = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+
+                let newEvent: any = null;
+
+                switch (type) {
+                    case 'BULL_RUN':
+                        newEvent = {
+                            id: Date.now().toString(),
+                            type: 'BULL_RUN',
+                            name: 'Bull Run',
+                            description: 'Market-wide rally! Prices are soaring.',
+                            severity: 'HIGH',
+                            duration: 60,
+                            impact: { priceChangePerTick: 0.005, volatilityMultiplier: 1.5 }
+                        };
+                        break;
+                    case 'CRASH':
+                        newEvent = {
+                            id: Date.now().toString(),
+                            type: 'CRASH',
+                            name: 'Market Crash',
+                            description: 'Panic selling across the board!',
+                            severity: 'EXTREME',
+                            duration: 45,
+                            impact: { priceChangePerTick: -0.008, volatilityMultiplier: 3.0 }
+                        };
+                        break;
+                    case 'TECH_BOOM':
+                        newEvent = {
+                            id: Date.now().toString(),
+                            type: 'TECH_BOOM',
+                            name: 'Tech Boom',
+                            description: 'Tech sector is exploding with innovation.',
+                            severity: 'MEDIUM',
+                            duration: 90,
+                            impact: { sector: 'Tech', priceChangePerTick: 0.004, volatilityMultiplier: 1.2 }
+                        };
+                        break;
+                    case 'LIQUIDITY_CRISIS':
+                        newEvent = {
+                            id: Date.now().toString(),
+                            type: 'LIQUIDITY_CRISIS',
+                            name: 'Liquidity Crisis',
+                            description: 'Low volume and high volatility.',
+                            severity: 'HIGH',
+                            duration: 30,
+                            impact: { priceChangePerTick: -0.002, volatilityMultiplier: 4.0 }
+                        };
+                        break;
+                }
+
+                if (newEvent) {
+                    triggerEvent(newEvent);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                }
+            }
+
             // 0. RE-INITIALIZATION CHECK
             if (currentStocks.length === 0) {
                 const initializedStocks = initializeStocks();
@@ -138,15 +240,15 @@ export const useMarketEngine = () => {
             // 61-80: Greed (Bullish/Rally)
             // 81-100: Extreme Greed (Euphoria/Pump)
 
-            // Base bias: -0.3% to +0.3% per tick based on F&G
+            // Base bias: -0.6% to +0.6% per tick based on F&G
             // This ensures strict correlation: Low F&G = Red Candles, High F&G = Green Candles
-            const sentimentBias = ((fearGreedIndex - 50) / 50) * 0.003;
+            const sentimentBias = ((fearGreedIndex - 50) / 50) * 0.006;
 
             currentStocks.forEach(stock => {
                 // 1. Evolve Drift (Trend)
                 const driftChange = (Math.random() - 0.5) * 0.0005;
                 let currentDrift = (driftRef.current[stock.symbol] || 0) + driftChange;
-                currentDrift *= 0.99; // Mean reversion
+                currentDrift *= 0.995; // Slower Mean reversion (allows trends to stick)
                 driftRef.current[stock.symbol] = currentDrift;
 
                 // 2. Volatility (Fat Tail)
@@ -164,8 +266,26 @@ export const useMarketEngine = () => {
                 if (stock.sector === 'Healthcare' || stock.sector === 'Energy') beta = 0.7;
 
                 // 4. Calculate Move
-                // Move = (Sentiment * Beta) + Noise + Drift
-                const percentChange = (sentimentBias * beta) + noise + currentDrift;
+                // P(t+1) = P(t) * (1 + Drift + Sentiment + Events + Noise)
+
+                // Event Impact
+                let eventImpact = 0;
+                let eventVolMult = 1;
+
+                activeEvents.forEach(e => {
+                    if (!e.impact.sector || e.impact.sector === stock.sector) {
+                        eventImpact += e.impact.priceChangePerTick;
+                        eventVolMult *= e.impact.volatilityMultiplier;
+                    }
+                });
+
+                // Rug Pull Logic (Targeted)
+                if (activeEvents.some(e => e.type === 'RUG_PULL') && stock.volatility > 0.03) {
+                    // High risk stocks get hammered
+                    eventImpact -= 0.05;
+                }
+
+                const percentChange = (sentimentBias * beta) + (noise * eventVolMult) + currentDrift + eventImpact;
                 let newPrice = stock.price * (1 + percentChange);
 
                 // --- SMART FLOOR LOGIC ---
@@ -179,8 +299,8 @@ export const useMarketEngine = () => {
                 }
 
                 // --- SMART CEILING LOGIC ---
-                let ceilingMult = 50;
-                if (gdpGrowth < 0) ceilingMult = 1.5; // Recession cap
+                // Relaxed ceiling to allow for "Mooning"
+                const ceilingMult = 500;
 
                 const hardCeiling = basePrice * ceilingMult;
                 if (newPrice > hardCeiling) {
@@ -249,7 +369,7 @@ export const useMarketEngine = () => {
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [fearGreedIndex, interestRate, gdpGrowth]); // Re-bind on F&G change
+    }, []); // Empty dependency array = Runs once, never resets
 
     // 4. NEWS SYSTEM
     useEffect(() => {

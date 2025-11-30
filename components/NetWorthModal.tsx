@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { X, TrendingUp, TrendingDown, DollarSign, PieChart, Wallet, Bitcoin } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { formatCurrency } from '../utils/currency';
 
 interface Props {
     visible: boolean;
@@ -31,7 +32,7 @@ export function NetWorthModal({ visible, onClose, netWorth, cash, stockValue, cr
                 </View>
             </View>
             <View style={styles.itemRight}>
-                <Text style={styles.itemValue}>£{value.toLocaleString()}</Text>
+                <Text style={styles.itemValue}>{formatCurrency(value)}</Text>
                 <Text style={styles.itemPercent}>{percent.toFixed(1)}%</Text>
             </View>
         </View>
@@ -59,11 +60,11 @@ export function NetWorthModal({ visible, onClose, netWorth, cash, stockValue, cr
 
                         <View style={styles.mainValue}>
                             <Text style={styles.label}>Total Balance</Text>
-                            <Text style={styles.value}>£{netWorth.toLocaleString()}</Text>
+                            <Text style={styles.value}>{formatCurrency(netWorth)}</Text>
                             <View style={[styles.badge, { backgroundColor: isProfit ? 'rgba(0,255,0,0.1)' : 'rgba(255,0,0,0.1)' }]}>
                                 {isProfit ? <TrendingUp size={16} color={COLORS.success} /> : <TrendingDown size={16} color={COLORS.negative} />}
                                 <Text style={[styles.badgeText, { color: isProfit ? COLORS.success : COLORS.negative }]}>
-                                    {isProfit ? '+' : ''}£{Math.abs(totalChange).toLocaleString()} ({totalChangePercent.toFixed(2)}%)
+                                    {isProfit ? '+' : ''}{formatCurrency(Math.abs(totalChange))} ({totalChangePercent.toFixed(2)}%)
                                 </Text>
                             </View>
                         </View>

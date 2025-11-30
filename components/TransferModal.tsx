@@ -6,6 +6,7 @@ import { useCryptoStore } from '../store/useCryptoStore';
 import { useStore } from '../store/useStore';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
+import { formatCurrency } from '../utils/currency';
 
 interface TransferModalProps {
     visible: boolean;
@@ -75,13 +76,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
 
                     <Text style={[styles.modalSubtitle, { color: theme.textSub }]}>
                         {type === 'DEPOSIT'
-                            ? `Available Cash: £${cash.toLocaleString()}`
-                            : `Available Crypto Balance: £${cryptoWallet.toLocaleString()}`
+                            ? `Available Cash: ${formatCurrency(cash)}`
+                            : `Available Crypto Balance: ${formatCurrency(cryptoWallet)}`
                         }
                     </Text>
 
                     <View style={[styles.inputContainer, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                        <Text style={[styles.currencySymbol, { color: theme.text }]}>£</Text>
+                        {/* Removed hardcoded symbol, input placeholder handles it or we can add dynamic symbol if needed */}
                         <TextInput
                             style={[styles.input, { color: theme.text }]}
                             value={amount}
@@ -103,7 +104,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
                                     Haptics.selectionAsync();
                                 }}
                             >
-                                <Text style={[styles.quickButtonText, { color: theme.text }]}>£{val}</Text>
+                                <Text style={[styles.quickButtonText, { color: theme.text }]}>{formatCurrency(val)}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>

@@ -7,7 +7,7 @@ import { ChevronLeft, TrendingUp, TrendingDown, Activity, Zap, Info } from 'luci
 import * as Haptics from 'expo-haptics';
 import { useCryptoStore } from '../../store/useCryptoStore';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
-import { MiniChart } from '../../components/MiniChart';
+import { InteractiveChart } from '../../components/InteractiveChart';
 import { CryptoDetailModal } from '../../components/CryptoDetailModal';
 import { CryptoTooltip } from '../../components/CryptoTooltip';
 
@@ -78,30 +78,15 @@ export default function CryptoDetailScreen() {
                         </View>
                     </View>
 
-                    <View style={styles.priceContainer}>
-                        <Text style={styles.price}>£{crypto.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-                        <View style={[styles.changeBadge, { backgroundColor: isPositive ? 'rgba(0,255,0,0.1)' : 'rgba(255,0,0,0.1)' }]}>
-                            {isPositive ? <TrendingUp size={16} color="#00FF00" /> : <TrendingDown size={16} color="#FF4444" />}
-                            <Text style={[styles.changeText, { color: isPositive ? '#00FF00' : '#FF4444' }]}>
-                                {changePercent.toFixed(2)}%
-                            </Text>
-                        </View>
-                    </View>
                 </View>
 
-                {/* Chart */}
-                <View style={styles.chartCard}>
-                    <LinearGradient
-                        colors={getGradientColors()}
-                        style={styles.chartBackground}
-                    >
-                        <MiniChart
-                            data={crypto.history}
-                            width={320}
-                            height={160}
-                            color={isPositive ? '#8E2DE2' : '#FF4444'}
-                        />
-                    </LinearGradient>
+                {/* Interactive Chart */}
+                <View style={[styles.chartCard, { borderColor: COLORS.border, backgroundColor: COLORS.bgElevated }]}>
+                    <InteractiveChart
+                        data={crypto.history}
+                        height={280}
+                        color={isPositive ? '#8E2DE2' : '#FF4444'}
+                    />
                 </View>
 
                 {/* Stats Grid */}
@@ -313,10 +298,10 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: COLORS.border,
+        paddingVertical: SPACING.md,
     },
     chartBackground: {
-        padding: SPACING.lg,
-        alignItems: 'center',
+        // Removed as we are using InteractiveChart container
     },
     statsGrid: {
         flexDirection: 'row',

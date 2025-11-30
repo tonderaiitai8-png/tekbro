@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { useStore } from '../store/useStore';
 import { useCryptoStore } from '../store/useCryptoStore';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import { formatCurrency } from '../utils/currency';
 
 interface PortfolioDetailModalProps {
     visible: boolean;
@@ -266,7 +267,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                     <Text style={styles.valueLabel}>TOTAL VALUE</Text>
                                 </View>
                                 <Text style={styles.valueAmount}>
-                                    £{analytics.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {formatCurrency(analytics.totalValue)}
                                 </Text>
                                 <View style={styles.pnlRow}>
                                     {analytics.totalPnL >= 0 ? (
@@ -275,7 +276,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                         <ArrowDownRight size={22} color="#FF4444" />
                                     )}
                                     <Text style={[styles.pnlText, { color: analytics.totalPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                        {analytics.totalPnL >= 0 ? '+' : ''}£{Math.abs(analytics.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {analytics.totalPnL >= 0 ? '+' : ''}{formatCurrency(Math.abs(analytics.totalPnL))}
                                     </Text>
                                     <Text style={[styles.pnlPercent, { color: analytics.totalPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
                                         ({analytics.totalPnL >= 0 ? '+' : ''}{analytics.totalPnLPercent.toFixed(2)}%)
@@ -369,12 +370,12 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                 <Activity size={18} color="#FF6B9D" />
                                                 <Text style={styles.statLabel}>Avg Leverage</Text>
                                             </View>
-                                            <Text style={styles.statValue}>{analytics.averageLeverage.toFixed(1)}x</Text>
+                                            <Text style={styles.statValue}>{(analytics.averageLeverage || 1).toFixed(1)}x</Text>
                                             <View style={styles.progressBar}>
                                                 <View
                                                     style={[
                                                         styles.progressFill,
-                                                        { width: `${Math.min(100, (analytics.averageLeverage / 10) * 100)}%`, backgroundColor: '#FF6B9D' }
+                                                        { width: `${Math.min(100, ((analytics.averageLeverage || 1) / 10) * 100)}%`, backgroundColor: '#FF6B9D' }
                                                     ]}
                                                 />
                                             </View>
@@ -397,7 +398,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                     <View key={sector.sector} style={styles.sectorItem}>
                                                         <View style={styles.sectorLeft}>
                                                             <LinearGradient
-                                                                colors={sectorColors}
+                                                                colors={sectorColors as [string, string, ...string[]]}
                                                                 style={styles.sectorIcon}
                                                             >
                                                                 <SectorIcon size={18} color="#FFF" />
@@ -406,7 +407,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                                 <Text style={styles.sectorName}>{sector.sector}</Text>
                                                                 <View style={styles.sectorProgressBar}>
                                                                     <LinearGradient
-                                                                        colors={sectorColors}
+                                                                        colors={sectorColors as [string, string, ...string[]]}
                                                                         style={[styles.sectorProgressFill, { width: `${sector.percentage}%` }]}
                                                                     />
                                                                 </View>
@@ -459,7 +460,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                             +{item.pnlPercent.toFixed(1)}%
                                                         </Text>
                                                         <Text style={styles.moverValue}>
-                                                            £{item.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                            {formatCurrency(item.value)}
                                                         </Text>
                                                     </View>
                                                 </LinearGradient>
@@ -499,7 +500,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                             {item.pnlPercent.toFixed(1)}%
                                                         </Text>
                                                         <Text style={styles.moverValue}>
-                                                            £{item.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                            {formatCurrency(item.value)}
                                                         </Text>
                                                     </View>
                                                 </LinearGradient>

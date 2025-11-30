@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Achievement } from '../types';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
     useAnimatedScrollHandler,
     useSharedValue,
 } from 'react-native-reanimated';
+import { useTheme } from '../hooks/useTheme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = 150;
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function AchievementGrid({ achievements, onAchievementPress }: Props) {
+    const { theme } = useTheme();
     const scrollX = useSharedValue(0);
 
     const scrollHandler = useAnimatedScrollHandler({
@@ -33,7 +35,7 @@ export function AchievementGrid({ achievements, onAchievementPress }: Props) {
             case 'gold': return '#FFD700';
             case 'silver': return '#C0C0C0';
             case 'bronze': return '#CD7F32';
-            default: return COLORS.textMuted;
+            default: return theme.textMuted;
         }
     };
 
@@ -51,14 +53,14 @@ export function AchievementGrid({ achievements, onAchievementPress }: Props) {
         return (
             <TouchableOpacity
                 key={item.id}
-                style={[styles.card, !isUnlocked && styles.cardLocked]}
+                style={[styles.card, { borderColor: isUnlocked ? theme.border : 'rgba(255,255,255,0.05)' }]}
                 onPress={() => handlePress(item)}
                 activeOpacity={0.8}
             >
                 {/* Background Gradient */}
                 <LinearGradient
                     colors={isUnlocked
-                        ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.02)']
+                        ? [theme.bgElevated, theme.bg]
                         : ['rgba(255,255,255,0.03)', 'rgba(0,0,0,0.2)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -89,11 +91,11 @@ export function AchievementGrid({ achievements, onAchievementPress }: Props) {
 
                 {/* Content */}
                 <View style={styles.contentContainer}>
-                    <Text style={[styles.title, !isUnlocked && styles.textLocked]} numberOfLines={1}>
+                    <Text style={[styles.title, { color: theme.text }, !isUnlocked && styles.textLocked]} numberOfLines={1}>
                         {item.title}
                     </Text>
 
-                    <Text style={[styles.description, !isUnlocked && styles.textLocked]} numberOfLines={2}>
+                    <Text style={[styles.description, { color: theme.textSecondary }, !isUnlocked && styles.textLocked]} numberOfLines={2}>
                         {item.description}
                     </Text>
 
@@ -101,7 +103,7 @@ export function AchievementGrid({ achievements, onAchievementPress }: Props) {
                     <View style={styles.footer}>
                         {!isUnlocked ? (
                             <View style={styles.progressWrapper}>
-                                <View style={styles.progressBar}>
+                                <View style={[styles.progressBar, { backgroundColor: theme.bgSubtle }]}>
                                     <View
                                         style={[
                                             styles.progressFill,
@@ -112,7 +114,7 @@ export function AchievementGrid({ achievements, onAchievementPress }: Props) {
                                         ]}
                                     />
                                 </View>
-                                <Text style={styles.progressText}>
+                                <Text style={[styles.progressText, { color: theme.textMuted }]}>
                                     {(item.progress ?? 0).toFixed(0)}/{item.target ?? 0}
                                 </Text>
                             </View>
@@ -161,12 +163,8 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.lg,
         padding: SPACING.md,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
         overflow: 'hidden',
         justifyContent: 'space-between',
-    },
-    cardLocked: {
-        borderColor: 'rgba(255,255,255,0.05)',
     },
     tierDot: {
         position: 'absolute',
@@ -202,14 +200,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 14,
         fontWeight: '700',
-        color: COLORS.text,
         fontFamily: FONTS.bold,
         marginBottom: 4,
         letterSpacing: 0.3,
     },
     description: {
         fontSize: 11,
-        color: COLORS.textSecondary,
         fontFamily: FONTS.medium,
         lineHeight: 15,
         opacity: 0.8,
@@ -226,7 +222,6 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         height: 3,
-        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 1.5,
         overflow: 'hidden',
     },
@@ -236,7 +231,6 @@ const styles = StyleSheet.create({
     },
     progressText: {
         fontSize: 10,
-        color: COLORS.textMuted,
         fontFamily: FONTS.medium,
         textAlign: 'right',
     },

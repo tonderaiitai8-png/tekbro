@@ -11,6 +11,7 @@ import { GRADIENTS } from '../../constants/gradients';
 import { LeaderboardEntry } from '../../types';
 import { AppBackground } from '../../components/AppBackground';
 import { useTheme } from '../../hooks/useTheme';
+import { formatCurrency } from '../../utils/currency';
 
 // Mock Data Generator
 const generateMockLeaderboard = (userEquity: number, username: string, userLevel: number, userAchievements: number): LeaderboardEntry[] => {
@@ -127,7 +128,7 @@ export default function LeaderboardScreen() {
                 {/* Equity */}
                 <View style={styles.equitySection}>
                     <Text style={[styles.equity, isTop3 ? styles.equityTop3 : { color: theme.text }]}>
-                        £{item.equity.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                        {formatCurrency(item.equity)}
                     </Text>
                 </View>
             </LinearGradient>
@@ -157,7 +158,7 @@ export default function LeaderboardScreen() {
                             <Text style={[styles.userRankNumber, { color: theme.bg }]}>#{userRank.rank}</Text>
                             <View style={{ flex: 1 }} />
                             <Text style={[styles.userRankEquity, { color: theme.bg }]}>
-                                £{userRank.equity.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                                {formatCurrency(userRank.equity)}
                             </Text>
                         </View>
                     </LinearGradient>

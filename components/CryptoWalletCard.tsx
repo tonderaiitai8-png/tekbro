@@ -7,6 +7,7 @@ import { useCryptoStore } from '../store/useCryptoStore';
 import { useStore } from '../store/useStore';
 import * as Haptics from 'expo-haptics';
 import { CryptoHistoryModal } from './CryptoHistoryModal';
+import { formatCurrency } from '../utils/currency';
 
 export const CryptoWalletCard = ({ onDeposit, onWithdraw }: { onDeposit: () => void, onWithdraw: () => void }) => {
     const { cryptoWallet, getTotalCryptoValue, cryptoTrades } = useCryptoStore();
@@ -35,11 +36,11 @@ export const CryptoWalletCard = ({ onDeposit, onWithdraw }: { onDeposit: () => v
                     <View style={styles.headerRow}>
                         <View>
                             <Text style={styles.label}>CRYPTO WALLET</Text>
-                            <Text style={styles.balance}>£{cryptoWallet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                            <Text style={styles.balance}>{formatCurrency(cryptoWallet)}</Text>
                         </View>
                         <View style={styles.netWorthContainer}>
                             <Text style={styles.netWorthLabel}>CRYPTO ASSETS</Text>
-                            <Text style={styles.netWorthValue}>£{totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                            <Text style={styles.netWorthValue}>{formatCurrency(totalEquity)}</Text>
                         </View>
                     </View>
 

@@ -26,6 +26,10 @@ interface MarketMoodStore {
     interestRate: number;
     gdpGrowth: number;
     inflation: number;
+    earningsSeason: boolean;
+    fedMeeting: 'none' | 'scheduled' | 'hawkish' | 'dovish';
+    whaleAlert: { symbol: string; type: 'buy' | 'sell'; amount: number } | null;
+    altSeason: boolean;
 
     // --- ACTIONS ---
     tick: () => void; // The heartbeat function
@@ -40,6 +44,33 @@ interface MarketMoodStore {
     getCryptoMoodColor: () => string;
     getSectorMultiplier: (sector: Sector, phase?: MarketCyclePhase) => number;
     setMacroMetrics: (metrics: { interestRate: number; gdpGrowth: number; inflation: number }) => void;
+    setEarningsSeason: (active: boolean) => void;
+    setFedMeeting: (status: 'none' | 'scheduled' | 'hawkish' | 'dovish') => void;
+    setWhaleAlert: (alert: { symbol: string; type: 'buy' | 'sell'; amount: number } | null) => void;
+    setAltSeason: (active: boolean) => void;
+
+    // Event Engine
+    activeEvents: MarketEvent[];
+    triggerEvent: (event: MarketEvent) => void;
+    decayEvents: () => void;
+
+    // Dev Tools
+    forcePhase: (phase: MarketCyclePhase) => void;
+    forceCryptoPhase: (phase: MarketCyclePhase) => void;
+}
+
+export interface MarketEvent {
+    id: string;
+    type: 'BULL_RUN' | 'BEAR_RAID' | 'CRASH' | 'RUG_PULL' | 'TECH_BOOM' | 'LIQUIDITY_CRISIS';
+    name: string;
+    description: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
+    duration: number; // Remaining ticks
+    impact: {
+        sector?: string; // If null, applies to all
+        priceChangePerTick: number; // e.g., 0.005 (+0.5% per tick)
+        volatilityMultiplier: number; // e.g., 2.0 (2x volatility)
+    };
 }
 
 const SECTOR_MULTIPLIERS: Record<MarketCyclePhase, Record<Sector, number>> = {
@@ -71,6 +102,19 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
             interestRate: 2.5,
             gdpGrowth: 2.0,
             inflation: 2.0,
+            earningsSeason: false,
+            fedMeeting: 'none',
+            whaleAlert: null,
+            altSeason: false,
+            activeEvents: [],
+
+            triggerEvent: (event) => set((state) => ({ activeEvents: [...state.activeEvents, event] })),
+
+            decayEvents: () => set((state) => ({
+                activeEvents: state.activeEvents
+                    .map(e => ({ ...e, duration: e.duration - 1 }))
+                    .filter(e => e.duration > 0)
+            })),
 
             tick: () => {
                 const state = get();
@@ -106,25 +150,37 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
                         break;
                 }
 
+                // Earnings Season Amplifier
+                if (state.earningsSeason) {
+                    volDrift += 0.5; // Higher volatility baseline
+                    fgiDrift *= 1.2; // More emotional swings
+                }
+
+                // Fed Meeting Anxiety
+                if (state.fedMeeting === 'scheduled') {
+                    volDrift += 0.2; // Uncertainty
+                    fgiDrift -= 0.1; // Slight fear bias
+                }
+
                 // 2. Crypto Heartbeat (Hyperactive)
                 let cryptoFgiDrift = 0;
                 let cryptoVolDrift = 0;
 
                 switch (state.cryptoCyclePhase) {
                     case 'accumulation':
-                        cryptoFgiDrift = Math.random() > 0.5 ? 0.5 : -0.5; // Chop
+                        cryptoFgiDrift = Math.random() > 0.5 ? 0.3 : -0.3; // Slower Chop
                         cryptoVolDrift = (30 - state.cryptoVolatility) * 0.1;
                         break;
                     case 'markup':
-                        cryptoFgiDrift = Math.random() > 0.3 ? 1.5 : -0.5; // Moon mission
+                        cryptoFgiDrift = Math.random() > 0.3 ? 0.8 : -0.2; // Slower Moon mission
                         cryptoVolDrift = (60 - state.cryptoVolatility) * 0.1;
                         break;
                     case 'distribution':
-                        cryptoFgiDrift = Math.random() > 0.5 ? -1.0 : 1.0; // Wild swings
+                        cryptoFgiDrift = Math.random() > 0.5 ? -0.6 : 0.6; // Slower Swings
                         cryptoVolDrift = (80 - state.cryptoVolatility) * 0.2;
                         break;
                     case 'markdown':
-                        cryptoFgiDrift = Math.random() > 0.3 ? -2.0 : 0.5; // Crash
+                        cryptoFgiDrift = Math.random() > 0.3 ? -1.0 : 0.2; // Slower Crash
                         cryptoVolDrift = (90 - state.cryptoVolatility) * 0.1;
                         break;
                 }
@@ -145,14 +201,15 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
                 let nextPhase = state.marketCyclePhase;
                 const fgi = state.fearGreedIndex;
 
-                if (state.marketCyclePhase === 'accumulation' && fgi > 55 && metrics.momentum > 0) nextPhase = 'markup';
-                else if (state.marketCyclePhase === 'markup' && fgi > 80 && metrics.momentum < 0) nextPhase = 'distribution';
-                else if (state.marketCyclePhase === 'distribution' && fgi < 45 && metrics.momentum < -10) nextPhase = 'markdown';
-                else if (state.marketCyclePhase === 'markdown' && fgi < 20 && metrics.momentum > -5) nextPhase = 'accumulation';
+                if (state.marketCyclePhase === 'accumulation' && fgi > 60) nextPhase = 'markup';
+                else if (state.marketCyclePhase === 'markup' && fgi > 80) nextPhase = 'distribution';
+                else if (state.marketCyclePhase === 'distribution' && fgi < 40) nextPhase = 'markdown';
+                else if (state.marketCyclePhase === 'markdown' && fgi < 20) nextPhase = 'accumulation';
 
                 set({
                     marketCyclePhase: nextPhase,
-                    marketMomentum: metrics.momentum
+                    marketMomentum: metrics.momentum,
+                    volatilityIndex: metrics.volatility
                 });
             },
 
@@ -163,10 +220,15 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
                 let nextPhase = state.cryptoCyclePhase;
                 const fgi = state.cryptoFearGreedIndex;
 
-                if (state.cryptoCyclePhase === 'accumulation' && fgi > 60) nextPhase = 'markup';
-                else if (state.cryptoCyclePhase === 'markup' && fgi > 90) nextPhase = 'distribution';
-                else if (state.cryptoCyclePhase === 'distribution' && fgi < 40) nextPhase = 'markdown';
-                else if (state.cryptoCyclePhase === 'markdown' && fgi < 15) nextPhase = 'accumulation';
+                // Adjusted Thresholds for longer phases
+                if (state.cryptoCyclePhase === 'accumulation' && fgi > 65) nextPhase = 'markup';
+                else if (state.cryptoCyclePhase === 'markup' && fgi > 95) nextPhase = 'distribution';
+                else if (state.cryptoCyclePhase === 'distribution' && fgi < 35) nextPhase = 'markdown';
+                else if (state.cryptoCyclePhase === 'markdown' && fgi < 5) nextPhase = 'accumulation';
+
+                if (nextPhase !== state.cryptoCyclePhase) {
+                    console.log(`[CryptoEngine] Transition: ${state.cryptoCyclePhase} -> ${nextPhase} (FGI: ${fgi})`);
+                }
 
                 set({
                     cryptoCyclePhase: nextPhase,
@@ -217,6 +279,50 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
             },
 
             setMacroMetrics: (metrics) => set(metrics),
+            setEarningsSeason: (active) => set({ earningsSeason: active }),
+            setFedMeeting: (status) => set({ fedMeeting: status }),
+            setWhaleAlert: (alert) => set({ whaleAlert: alert }),
+            setAltSeason: (active) => set({ altSeason: active }),
+
+            // FORCE ACTIONS (Dev Tools)
+            forcePhase: (phase) => {
+                let targetFgi = 50;
+                let targetMomentum = 0;
+
+                switch (phase) {
+                    case 'accumulation': targetFgi = 45; targetMomentum = 5; break;
+                    case 'markup': targetFgi = 75; targetMomentum = 50; break;
+                    case 'distribution': targetFgi = 60; targetMomentum = -20; break;
+                    case 'markdown': targetFgi = 20; targetMomentum = -80; break;
+                }
+
+                set({
+                    marketCyclePhase: phase,
+                    fearGreedIndex: targetFgi,
+                    marketMomentum: targetMomentum
+                });
+            },
+
+            forceCryptoPhase: (phase) => {
+                let targetFgi = 50;
+                let targetHype = 20;
+
+                // Set FGI to start of phase to allow run room
+                switch (phase) {
+                    case 'accumulation': targetFgi = 40; targetHype = 30; break;
+                    case 'markup': targetFgi = 70; targetHype = 80; break;
+                    case 'distribution': targetFgi = 60; targetHype = 60; break;
+                    case 'markdown': targetFgi = 30; targetHype = 10; break;
+                }
+
+                console.log(`[DevTools] Forcing Crypto Phase: ${phase} (Target FGI: ${targetFgi})`);
+
+                set({
+                    cryptoCyclePhase: phase,
+                    cryptoFearGreedIndex: targetFgi,
+                    cryptoHype: targetHype
+                });
+            },
 
             reset: () => set({
                 tickCount: 0,
@@ -231,7 +337,12 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
                 cryptoDominance: 52.4,
                 interestRate: 2.5,
                 gdpGrowth: 2.0,
-                inflation: 2.0
+                inflation: 2.0,
+                earningsSeason: false,
+                fedMeeting: 'none',
+                whaleAlert: null,
+                altSeason: false,
+                activeEvents: []
             })
         }),
         {

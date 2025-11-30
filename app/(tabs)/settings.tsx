@@ -1,228 +1,165 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Settings, User, Bell, Smartphone, Trash2, Info, ChevronRight, LogOut, Shield, CreditCard, Palette, Check } from 'lucide-react-native';
-import { FONTS, SPACING, RADIUS, ThemeType } from '../../constants/theme';
+import { Settings, User, Bell, Smartphone, Trash2, Info, ChevronRight, LogOut, Shield, CreditCard, Palette, Check, Wrench, DollarSign } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useStore } from '../../store/useStore';
 import { useTheme } from '../../hooks/useTheme';
-import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-
-import { EditProfileModal } from '../../components/EditProfileModal';
+import { FONTS, SPACING, RADIUS } from '../../constants/theme';
+import DevSettingsModal from '../../components/DevSettingsModal';
+import ThemeModal from '../../components/ThemeModal';
+import CurrencyModal from '../../components/CurrencyModal';
 
 export default function SettingsScreen() {
-    const { username, reset, setProfile } = useStore();
-    const { theme, currentTheme, setTheme } = useTheme();
     const router = useRouter();
-    const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-    const [hapticsEnabled, setHapticsEnabled] = React.useState(true);
-    const [editProfileVisible, setEditProfileVisible] = React.useState(false);
+    const { theme } = useTheme();
+    const { reset } = useStore();
+    const [devModalVisible, setDevModalVisible] = useState(false);
+    const [themeModalVisible, setThemeModalVisible] = useState(false);
+    const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
 
     const handleReset = () => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         Alert.alert(
-            'Reset Account',
-            'Are you sure you want to wipe all progress? This cannot be undone.',
+            "Reset App",
+            "Are you sure you want to reset all data? This cannot be undone.",
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: "Cancel", style: "cancel" },
                 {
-                    text: 'Reset Everything',
-                    style: 'destructive',
+                    text: "Reset",
+                    style: "destructive",
                     onPress: () => {
                         reset();
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        router.replace('/onboarding');
+                        router.replace('/');
                     }
                 }
             ]
         );
     };
 
-    const SettingItem = ({ icon: Icon, title, subtitle, onPress, isDestructive = false, rightElement }: any) => (
+    const renderItem = (icon: React.ReactNode, title: string, subtitle?: string, onPress?: () => void, showChevron = true, rightElement?: React.ReactNode) => (
         <TouchableOpacity
             style={styles.item}
             onPress={onPress}
-            activeOpacity={0.7}
-            disabled={!!rightElement}
+            disabled={!onPress}
         >
-            <View style={[
-                styles.iconBox,
-                { backgroundColor: isDestructive ? theme.negativeSubtle : theme.primary + '15' }
-            ]}>
-                <Icon size={20} color={isDestructive ? theme.negative : theme.primary} />
+            <View style={[styles.iconBox, { backgroundColor: theme.card }]}>
+                {icon}
             </View>
             <View style={styles.itemContent}>
-                <Text style={[
-                    styles.itemTitle,
-                    { color: isDestructive ? theme.negative : theme.text }
-                ]}>{title}</Text>
-                {subtitle && <Text style={[styles.itemSubtitle, { color: theme.textTertiary }]}>{subtitle}</Text>}
+                <Text style={[styles.itemTitle, { color: theme.text }]}>{title}</Text>
+                {subtitle && <Text style={[styles.itemSubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>}
             </View>
-            {rightElement || <ChevronRight size={20} color={theme.textTertiary} />}
+            {rightElement}
+            {showChevron && !rightElement && <ChevronRight size={20} color={theme.textSecondary} />}
         </TouchableOpacity>
     );
 
-    const SectionHeader = ({ title }: { title: string }) => (
-        <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>{title}</Text>
-    );
-
-    const ThemeOption = ({ id, label, colors }: { id: ThemeType, label: string, colors: readonly [string, string] }) => {
-        const isActive = currentTheme === id;
-        return (
-            <TouchableOpacity
-                style={[
-                    styles.themeCard,
-                    {
-                        borderColor: isActive ? theme.primary : 'transparent',
-                        transform: [{ scale: isActive ? 1.02 : 1 }]
-                    }
-                ]}
-                onPress={() => {
-                    setTheme(id);
-                    Haptics.selectionAsync();
-                }}
-                activeOpacity={0.9}
-            >
-                <LinearGradient
-                    colors={colors}
-                    style={styles.themeCardGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                >
-                    {isActive && (
-                        <View style={[styles.activeBadge, { backgroundColor: theme.primary }]}>
-                            <Check size={12} color="#000" strokeWidth={3} />
-                        </View>
-                    )}
-                    <View style={styles.themeCardContent}>
-                        <Text style={styles.themeCardLabel}>{label}</Text>
-                        <View style={[styles.themeCardIndicator, { backgroundColor: isActive ? theme.primary : 'rgba(255,255,255,0.2)' }]} />
-                    </View>
-                </LinearGradient>
-            </TouchableOpacity>
-        );
-    };
-
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]} edges={['top']}>
             <View style={[styles.header, { borderBottomColor: theme.border }]}>
                 <Text style={[styles.headerTitle, { color: theme.text }]}>Settings</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* Profile Card */}
-                <LinearGradient
-                    colors={[theme.primary + '20', theme.primary + '05']}
-                    style={[styles.profileCard, { borderColor: theme.primary + '30' }]}
-                >
+                {/* Profile Section */}
+                <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.avatar, { backgroundColor: theme.bg, borderColor: theme.primary }]}>
-                        <User size={32} color={theme.primary} />
+                        <User size={30} color={theme.primary} />
                     </View>
                     <View>
-                        <Text style={[styles.profileName, { color: theme.text }]}>{username || 'Trader'}</Text>
-                        <Text style={[styles.profileStatus, { color: theme.primary }]}>Pro Member</Text>
+                        <Text style={[styles.profileName, { color: theme.text }]}>Trader</Text>
+                        <Text style={[styles.profileStatus, { color: theme.textSecondary }]}>Pro Member</Text>
                     </View>
-                </LinearGradient>
-
-                <SectionHeader title="Appearance" />
-                <View style={styles.themeGrid}>
-                    <ThemeOption id="midnight" label="Midnight" colors={['#000000', '#1A1A1A']} />
-                    <ThemeOption id="ocean" label="Ocean" colors={['#020617', '#1e293b']} />
-                    <ThemeOption id="sunset" label="Sunset" colors={['#2a0a2a', '#4a1a4a']} />
-                    <ThemeOption id="forest" label="Forest" colors={['#052e16', '#064e3b']} />
                 </View>
 
-                <SectionHeader title="Preferences" />
+                {/* Appearance & Currency */}
+                <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Personalization</Text>
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <SettingItem
-                        icon={Bell}
-                        title="Notifications"
-                        subtitle="Price alerts & news"
-                        rightElement={
-                            <Switch
-                                value={notificationsEnabled}
-                                onValueChange={setNotificationsEnabled}
-                                trackColor={{ false: theme.border, true: theme.primary }}
-                                thumbColor={'#FFF'}
-                            />
-                        }
-                    />
+                    {renderItem(
+                        <Palette size={20} color={theme.primary} />,
+                        "App Theme",
+                        "Customize look and feel",
+                        () => setThemeModalVisible(true)
+                    )}
                     <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                    <SettingItem
-                        icon={Smartphone}
-                        title="Haptic Feedback"
-                        subtitle="Vibrations on interaction"
-                        rightElement={
-                            <Switch
-                                value={hapticsEnabled}
-                                onValueChange={setHapticsEnabled}
-                                trackColor={{ false: theme.border, true: theme.primary }}
-                                thumbColor={'#FFF'}
-                            />
-                        }
-                    />
+                    {renderItem(
+                        <DollarSign size={20} color={theme.primary} />,
+                        "Currency",
+                        "Choose display currency",
+                        () => setCurrencyModalVisible(true)
+                    )}
                 </View>
 
-                <SectionHeader title="Account" />
+                {/* Account Settings */}
+                <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Account</Text>
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <SettingItem
-                        icon={User}
-                        title="Edit Profile"
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setEditProfileVisible(true);
-                        }}
-                    />
+                    {renderItem(<User size={20} color={theme.primary} />, "Personal Information", "Update your details", () => { })}
                     <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                    <SettingItem
-                        icon={CreditCard}
-                        title="Subscription"
-                        subtitle="Manage your Pro plan"
-                        onPress={() => { }}
-                    />
+                    {renderItem(<Shield size={20} color={theme.primary} />, "Security", "Password, 2FA", () => { })}
                     <View style={[styles.divider, { backgroundColor: theme.border }]} />
-                    <SettingItem
-                        icon={Shield}
-                        title="Privacy & Security"
-                        onPress={() => { }}
-                    />
+                    {renderItem(<CreditCard size={20} color={theme.primary} />, "Payment Methods", "Manage cards", () => { })}
                 </View>
 
-                <SectionHeader title="Support" />
+                {/* App Settings */}
+                <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>App Settings</Text>
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <SettingItem
-                        icon={Info}
-                        title="About PaperTrader"
-                        subtitle="Version 2.0.0"
-                        onPress={() => { }}
-                    />
+                    {renderItem(<Bell size={20} color={theme.primary} />, "Notifications", "Manage alerts", () => { })}
+                    <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                    {renderItem(<Smartphone size={20} color={theme.primary} />, "App Icon", "Change appearance", () => { })}
                 </View>
 
-                <SectionHeader title="Danger Zone" />
-                <View style={[
-                    styles.section,
-                    {
-                        backgroundColor: theme.negativeSubtle,
-                        borderColor: theme.negativeSubtle
-                    }
-                ]}>
-                    <SettingItem
-                        icon={Trash2}
-                        title="Reset Account"
-                        subtitle="Wipe all data and start over"
-                        isDestructive
-                        onPress={handleReset}
-                    />
+                {/* Support */}
+                <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Support</Text>
+                <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    {renderItem(<Info size={20} color={theme.primary} />, "Help Center", "FAQ, Contact Support", () => { })}
+                    <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                    {renderItem(
+                        <Wrench size={20} color={theme.accent} />,
+                        "Developer Tools",
+                        "Debug & Testing",
+                        () => setDevModalVisible(true)
+                    )}
                 </View>
 
-                <Text style={[styles.footerText, { color: theme.textTertiary }]}>Made with ❤️ by BankTec</Text>
+                {/* Danger Zone */}
+                <Text style={[styles.sectionHeader, { color: theme.negative }]}>Danger Zone</Text>
+                <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    {renderItem(
+                        <Trash2 size={20} color={theme.negative} />,
+                        "Reset App Data",
+                        "Clear all data and progress",
+                        handleReset,
+                        false
+                    )}
+                    <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                    {renderItem(
+                        <LogOut size={20} color={theme.negative} />,
+                        "Log Out",
+                        undefined,
+                        () => router.replace('/'),
+                        false
+                    )}
+                </View>
+
+                <Text style={[styles.footerText, { color: theme.textSecondary }]}>
+                    Version 1.0.0 (Build 104)
+                </Text>
+
             </ScrollView>
 
-            <EditProfileModal
-                visible={editProfileVisible}
-                onClose={() => setEditProfileVisible(false)}
+            <DevSettingsModal
+                visible={devModalVisible}
+                onClose={() => setDevModalVisible(false)}
+            />
+            <ThemeModal
+                visible={themeModalVisible}
+                onClose={() => setThemeModalVisible(false)}
+            />
+            <CurrencyModal
+                visible={currencyModalVisible}
+                onClose={() => setCurrencyModalVisible(false)}
             />
         </SafeAreaView>
     );
@@ -319,58 +256,5 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.medium,
         fontSize: 12,
         marginTop: SPACING.lg,
-    },
-    themeGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: SPACING.md,
-        marginBottom: SPACING.xl,
-    },
-    themeCard: {
-        width: '47%',
-        height: 100,
-        borderRadius: RADIUS.xl,
-        borderWidth: 2,
-        overflow: 'hidden',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    themeCardGradient: {
-        flex: 1,
-        padding: SPACING.md,
-        justifyContent: 'flex-end',
-    },
-    themeCardContent: {
-        gap: 4,
-    },
-    themeCardLabel: {
-        fontSize: 16,
-        fontFamily: FONTS.bold,
-        color: '#FFF',
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-    },
-    themeCardIndicator: {
-        width: 20,
-        height: 4,
-        borderRadius: RADIUS.full,
-    },
-    activeBadge: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        width: 20,
-        height: 20,
-        borderRadius: RADIUS.full,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
     },
 });

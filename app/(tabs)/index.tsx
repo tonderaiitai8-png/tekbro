@@ -20,6 +20,7 @@ import { UnifiedSearchModal } from '../../components/UnifiedSearchModal';
 import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { NetWorthModal } from '../../components/NetWorthModal';
 import { useTheme } from '../../hooks/useTheme';
+import { formatCurrency } from '../../utils/currency';
 
 // Memoized Header Component
 const PortfolioHeader = React.memo(({
@@ -51,9 +52,6 @@ const PortfolioHeader = React.memo(({
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                     <TouchableOpacity onPress={onSearchPress} style={styles.settingsButton}>
                         <Search size={24} color={theme.textSecondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={onReset} style={styles.settingsButton}>
-                        <LogOut size={24} color={theme.textSecondary} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -116,20 +114,20 @@ const PortfolioHeader = React.memo(({
 
                     <AnimatedCounter
                         value={netWorth}
-                        prefix="£"
+                        prefix=""
                         style={[styles.netWorthValue, { color: theme.white }]}
-                        formatter={(val) => `£${Math.floor(val).toLocaleString()}`}
+                        formatter={(val) => formatCurrency(val)}
                     />
 
                     <View style={styles.balanceRow}>
                         <View style={styles.balanceItem}>
                             <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.6)' }]}>Cash</Text>
-                            <Text style={[styles.balanceText, { color: theme.white }]}>£{cash.toLocaleString()}</Text>
+                            <Text style={[styles.balanceText, { color: theme.white }]}>{formatCurrency(cash)}</Text>
                         </View>
                         <View style={styles.balanceDivider} />
                         <View style={styles.balanceItem}>
                             <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.6)' }]}>Crypto</Text>
-                            <Text style={[styles.balanceText, { color: theme.white }]}>£{cryptoValue.toLocaleString()}</Text>
+                            <Text style={[styles.balanceText, { color: theme.white }]}>{formatCurrency(cryptoValue)}</Text>
                         </View>
                     </View>
                 </LinearGradient>

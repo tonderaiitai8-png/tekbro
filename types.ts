@@ -37,7 +37,16 @@ export interface Trade {
     pnlPercent?: number;
 }
 
-// Sprint 2: Achievement type
+export interface TradingStats {
+    totalProfit: number;
+    totalLoss: number;
+    winStreak: number;
+    currentWinStreak: number;
+    maxGain: number;
+    maxLoss: number;
+    profitableTradesCount: number;
+    totalTradesCount: number;
+}
 export interface AchievementCondition {
     type: 'netWorth' | 'trades' | 'profit_trade' | 'gain_percent' | 'quick_profit' | 'hold_duration' | 'win_streak' | 'win_rate' | 'concentration' | 'diversity' | 'crypto_own' | 'crypto_value' | 'penny_profit' | 'trade_size' | 'low_cash' | 'loss_percent' | 'netWorth_low' | 'comeback' | 'time_trade' | 'no_sell_streak' | 'profit_total' | 'loss_total' | 'login_streak';
     value: number;
@@ -122,6 +131,21 @@ export interface NewsEvent {
     suggestion?: 'BUY' | 'SELL' | 'HOLD';
 }
 
+export interface Mission {
+    id: string;
+    title: string;
+    description: string;
+    type: 'SURVIVE_CRASH' | 'PROFIT_DURING_CRASH' | 'HOLD_THROUGH_DIP' | 'EARNINGS_PLAY' | 'FED_PLAY' | 'WHALE_WATCH' | 'ALT_SEASON_RIDER';
+    status: 'ACTIVE' | 'COMPLETED' | 'FAILED';
+    progress: number;
+    target: number;
+    reward: {
+        xp: number;
+        cash?: number;
+    };
+    expiresAt: number; // Timestamp
+}
+
 export interface AppState {
     // Core state
     cash: number;
@@ -145,6 +169,8 @@ export interface AppState {
     equityHistory: PricePoint[];
     activeNews: NewsEvent | null;
     marketSentiment: number;
+    missions: Mission[];
+    tradingStats: TradingStats;
 
     // Actions
     buyStock: (symbol: string, quantity: number, price: number) => void;
@@ -161,6 +187,8 @@ export interface AppState {
     checkLoginStreak: () => number;
     setActiveNews: (news: NewsEvent | null) => void;
     setMarketSentiment: (sentiment: number) => void;
+    setMissions: (missions: Mission[]) => void;
+    updateMissionProgress: (id: string, progress: number) => void;
 }
 
 // Crypto Trading Types

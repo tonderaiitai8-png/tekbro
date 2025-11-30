@@ -7,6 +7,9 @@ import { Trade } from '../types';
 import { useStore } from '../store/useStore';
 import { useCryptoStore } from '../store/useCryptoStore';
 
+import { useTheme } from '../hooks/useTheme';
+import { formatCurrency } from '../utils/currency';
+
 interface Props {
     visible: boolean;
     onClose: () => void;
@@ -16,6 +19,7 @@ interface Props {
 type FilterType = 'ALL' | 'STOCK' | 'CRYPTO' | 'PROFIT' | 'LOSS';
 
 export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
+    const { theme } = useTheme();
     const { trades: stockTrades } = useStore();
     const { cryptoTrades } = useCryptoStore();
     const [filter, setFilter] = useState<FilterType>('ALL');
@@ -53,28 +57,28 @@ export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
 
         return (
             <TouchableOpacity
-                style={styles.tradeItem}
+                style={[styles.tradeItem, { backgroundColor: theme.card }]}
                 onPress={() => setSelectedTrade(item)}
             >
                 <View style={styles.tradeLeft}>
                     <View style={[styles.iconBox, {
-                        backgroundColor: isProfit ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 68, 68, 0.1)'
+                        backgroundColor: isProfit ? theme.successDim : theme.negativeSubtle
                     }]}>
                         {isProfit ?
-                            <TrendingUp size={20} color={COLORS.success} /> :
-                            <TrendingDown size={20} color={COLORS.negative} />
+                            <TrendingUp size={20} color={theme.success} /> :
+                            <TrendingDown size={20} color={theme.negative} />
                         }
                     </View>
                     <View>
-                        <Text style={styles.symbol}>{item.symbol}</Text>
-                        <Text style={styles.type}>{item.assetType} • {item.type}</Text>
+                        <Text style={[styles.symbol, { color: theme.text }]}>{item.symbol}</Text>
+                        <Text style={[styles.type, { color: theme.textSecondary }]}>{item.assetType} • {item.type}</Text>
                     </View>
                 </View>
                 <View style={styles.tradeRight}>
-                    <Text style={[styles.amount, { color: isProfit ? COLORS.success : COLORS.negative }]}>
-                        {isProfit ? '+' : ''}£{Math.abs(item.pnl || 0).toFixed(2)}
+                    <Text style={[styles.amount, { color: isProfit ? theme.success : theme.negative }]}>
+                        {isProfit ? '+' : ''}{formatCurrency(Math.abs(item.pnl || 0))}
                     </Text>
-                    <Text style={styles.date}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+                    <Text style={[styles.date, { color: theme.textTertiary }]}>{new Date(item.timestamp).toLocaleDateString()}</Text>
                 </View>
             </TouchableOpacity>
         );
@@ -83,7 +87,7 @@ export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
     const renderDetailModal = () => {
         if (!selectedTrade) return null;
         const isProfit = (selectedTrade.pnl || 0) >= 0;
-        const color = isProfit ? COLORS.success : COLORS.negative;
+        const color = isProfit ? theme.success : theme.negative;
 
         return (
             <Modal
@@ -93,47 +97,47 @@ export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
                 onRequestClose={() => setSelectedTrade(null)}
             >
                 <BlurView intensity={20} style={styles.detailOverlay}>
-                    <View style={styles.detailCard}>
+                    <View style={[styles.detailCard, { backgroundColor: theme.bgElevated, borderColor: theme.border }]}>
                         <View style={[styles.detailHeader, { borderBottomColor: color }]}>
-                            <Text style={styles.detailTitle}>Trade Details</Text>
+                            <Text style={[styles.detailTitle, { color: theme.text }]}>Trade Details</Text>
                             <TouchableOpacity onPress={() => setSelectedTrade(null)}>
-                                <X size={24} color={COLORS.text} />
+                                <X size={24} color={theme.text} />
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.detailContent}>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Asset</Text>
-                                <Text style={styles.detailValue}>{selectedTrade.symbol}</Text>
+                                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Asset</Text>
+                                <Text style={[styles.detailValue, { color: theme.text }]}>{selectedTrade.symbol}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Type</Text>
-                                <Text style={[styles.detailValue, { color: selectedTrade.type === 'BUY' ? COLORS.success : COLORS.negative }]}>
+                                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Type</Text>
+                                <Text style={[styles.detailValue, { color: selectedTrade.type === 'BUY' ? theme.success : theme.negative }]}>
                                     {selectedTrade.type}
                                 </Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Price</Text>
-                                <Text style={styles.detailValue}>£{selectedTrade.price.toFixed(2)}</Text>
+                                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Price</Text>
+                                <Text style={[styles.detailValue, { color: theme.text }]}>{formatCurrency(selectedTrade.price)}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Quantity</Text>
-                                <Text style={styles.detailValue}>{selectedTrade.quantity}</Text>
+                                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Quantity</Text>
+                                <Text style={[styles.detailValue, { color: theme.text }]}>{selectedTrade.quantity}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Total Value</Text>
-                                <Text style={styles.detailValue}>£{(selectedTrade.price * selectedTrade.quantity).toFixed(2)}</Text>
+                                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Total Value</Text>
+                                <Text style={[styles.detailValue, { color: theme.text }]}>{formatCurrency(selectedTrade.price * selectedTrade.quantity)}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Date</Text>
-                                <Text style={styles.detailValue}>{new Date(selectedTrade.timestamp).toLocaleString()}</Text>
+                                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Date</Text>
+                                <Text style={[styles.detailValue, { color: theme.text }]}>{new Date(selectedTrade.timestamp).toLocaleString()}</Text>
                             </View>
 
                             {selectedTrade.pnl !== undefined && (
                                 <View style={[styles.pnlBox, { backgroundColor: color + '20', borderColor: color }]}>
                                     <Text style={[styles.pnlLabel, { color }]}>P&L</Text>
                                     <Text style={[styles.pnlAmount, { color }]}>
-                                        {selectedTrade.pnl >= 0 ? '+' : ''}£{selectedTrade.pnl.toFixed(2)}
+                                        {selectedTrade.pnl >= 0 ? '+' : ''}{formatCurrency(Math.abs(selectedTrade.pnl))}
                                     </Text>
                                     <Text style={[styles.pnlPercent, { color }]}>
                                         {((selectedTrade.pnl / (selectedTrade.price * selectedTrade.quantity)) * 100).toFixed(2)}%
@@ -154,23 +158,31 @@ export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
             presentationStyle="pageSheet"
             onRequestClose={onClose}
         >
-            <View style={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Trade History</Text>
+            <View style={[styles.container, { backgroundColor: theme.bg }]}>
+                <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                    <Text style={[styles.title, { color: theme.text }]}>Trade History</Text>
                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <X size={24} color={COLORS.text} />
+                        <X size={24} color={theme.text} />
                     </TouchableOpacity>
                 </View>
 
-                <View style={styles.filters}>
+                <View style={[styles.filters, { borderBottomColor: theme.border }]}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {(['ALL', 'STOCK', 'CRYPTO', 'PROFIT', 'LOSS'] as FilterType[]).map((f) => (
                             <TouchableOpacity
                                 key={f}
-                                style={[styles.filterChip, filter === f && styles.filterChipActive]}
+                                style={[
+                                    styles.filterChip,
+                                    { backgroundColor: theme.card, borderColor: theme.border },
+                                    filter === f && { backgroundColor: theme.primary, borderColor: theme.primary }
+                                ]}
                                 onPress={() => setFilter(f)}
                             >
-                                <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                                <Text style={[
+                                    styles.filterText,
+                                    { color: theme.textSecondary },
+                                    filter === f && { color: '#FFF' }
+                                ]}>
                                     {f}
                                 </Text>
                             </TouchableOpacity>
@@ -186,8 +198,8 @@ export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.empty}>
-                            <Activity size={48} color={COLORS.textTertiary} />
-                            <Text style={styles.emptyText}>No trades found</Text>
+                            <Activity size={48} color={theme.textTertiary} />
+                            <Text style={[styles.emptyText, { color: theme.textTertiary }]}>No trades found</Text>
                         </View>
                     }
                 />
@@ -201,7 +213,6 @@ export function TradeHistoryModal({ visible, onClose, initialTradeId }: Props) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.bg,
     },
     header: {
         flexDirection: 'row',
@@ -209,12 +220,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: SPACING.lg,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
     },
     title: {
         fontSize: 20,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
     },
     closeButton: {
         padding: 4,

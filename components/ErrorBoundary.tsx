@@ -103,14 +103,14 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: FONTS.sizes.xxl,
-        fontFamily: FONTS.weights.bold,
+        fontFamily: FONTS.bold,
         color: COLORS.text,
         marginBottom: SPACING.md,
         textAlign: 'center',
     },
     message: {
         fontSize: FONTS.sizes.md,
-        fontFamily: FONTS.weights.regular,
+        fontFamily: FONTS.regular,
         color: COLORS.textSub,
         textAlign: 'center',
         marginBottom: SPACING.xl,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         fontSize: FONTS.sizes.md,
-        fontFamily: FONTS.weights.bold,
+        fontFamily: FONTS.bold,
         color: COLORS.background,
     },
 });

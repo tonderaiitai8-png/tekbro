@@ -3,16 +3,19 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../store/useStore';
 import { useCryptoStore } from '../../store/useCryptoStore';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
+import { FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react-native';
 import { AppBackground } from '../../components/AppBackground';
 import { TradeHistoryModal } from '../../components/TradeHistoryModal';
+import { useTheme } from '../../hooks/useTheme';
+import { formatCurrency } from '../../utils/currency';
 
 type FilterType = 'ALL' | 'STOCK' | 'CRYPTO' | 'PROFIT' | 'LOSS';
 
 export default function HistoryScreen() {
     const { trades: stockTrades } = useStore();
     const { cryptoTrades } = useCryptoStore();
+    const { theme } = useTheme();
     const [filter, setFilter] = useState<FilterType>('ALL');
     const [selectedTradeId, setSelectedTradeId] = useState<string | undefined>(undefined);
     const [modalVisible, setModalVisible] = useState(false);
@@ -40,7 +43,7 @@ export default function HistoryScreen() {
 
         return (
             <TouchableOpacity
-                style={styles.tradeItem}
+                style={[styles.tradeItem, { backgroundColor: theme.card, borderColor: theme.border }]}
                 onPress={() => {
                     setSelectedTradeId(item.id);
                     setModalVisible(true);
@@ -48,23 +51,23 @@ export default function HistoryScreen() {
             >
                 <View style={styles.tradeLeft}>
                     <View style={[styles.iconBox, {
-                        backgroundColor: isProfit ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 68, 68, 0.1)'
+                        backgroundColor: isProfit ? `${theme.success}20` : `${theme.negative}20`
                     }]}>
                         {isProfit ?
-                            <TrendingUp size={20} color={COLORS.success} /> :
-                            <TrendingDown size={20} color={COLORS.negative} />
+                            <TrendingUp size={20} color={theme.success} /> :
+                            <TrendingDown size={20} color={theme.negative} />
                         }
                     </View>
                     <View>
-                        <Text style={styles.symbol}>{item.symbol}</Text>
-                        <Text style={styles.type}>{item.assetType} • {item.type}</Text>
+                        <Text style={[styles.symbol, { color: theme.text }]}>{item.symbol}</Text>
+                        <Text style={[styles.type, { color: theme.textSecondary }]}>{item.assetType} • {item.type}</Text>
                     </View>
                 </View>
                 <View style={styles.tradeRight}>
-                    <Text style={[styles.amount, { color: isProfit ? COLORS.success : COLORS.negative }]}>
-                        {isProfit ? '+' : ''}£{Math.abs(item.pnl || 0).toFixed(2)}
+                    <Text style={[styles.amount, { color: isProfit ? theme.success : theme.negative }]}>
+                        {isProfit ? '+' : ''}{formatCurrency(Math.abs(item.pnl || 0))}
                     </Text>
-                    <Text style={styles.date}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+                    <Text style={[styles.date, { color: theme.textTertiary }]}>{new Date(item.timestamp).toLocaleDateString()}</Text>
                 </View>
             </TouchableOpacity>
         );
@@ -74,7 +77,7 @@ export default function HistoryScreen() {
         <AppBackground>
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>Trade History</Text>
+                    <Text style={[styles.title, { color: theme.text }]}>Trade History</Text>
                 </View>
 
                 <View style={styles.filters}>
@@ -82,10 +85,17 @@ export default function HistoryScreen() {
                         {(['ALL', 'STOCK', 'CRYPTO', 'PROFIT', 'LOSS'] as FilterType[]).map((f) => (
                             <TouchableOpacity
                                 key={f}
-                                style={[styles.filterChip, filter === f && styles.filterChipActive]}
+                                style={[
+                                    styles.filterChip,
+                                    { backgroundColor: filter === f ? theme.primary : theme.card, borderColor: theme.border },
+                                    filter === f && { borderColor: theme.primary }
+                                ]}
                                 onPress={() => setFilter(f)}
                             >
-                                <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                                <Text style={[
+                                    styles.filterText,
+                                    { color: filter === f ? '#FFF' : theme.textSecondary }
+                                ]}>
                                     {f}
                                 </Text>
                             </TouchableOpacity>
@@ -101,8 +111,8 @@ export default function HistoryScreen() {
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.empty}>
-                            <Activity size={48} color={COLORS.textTertiary} />
-                            <Text style={styles.emptyText}>No trades found</Text>
+                            <Activity size={48} color={theme.textTertiary} />
+                            <Text style={[styles.emptyText, { color: theme.textTertiary }]}>No trades found</Text>
                         </View>
                     }
                 />
@@ -128,7 +138,6 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 28,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
     },
     filters: {
         paddingVertical: SPACING.md,
@@ -138,22 +147,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.lg,
         paddingVertical: SPACING.sm,
         borderRadius: RADIUS.full,
-        backgroundColor: COLORS.card,
         marginRight: SPACING.sm,
         borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    filterChipActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
     },
     filterText: {
         fontSize: 12,
         fontFamily: FONTS.medium,
-        color: COLORS.textSecondary,
-    },
-    filterTextActive: {
-        color: '#FFF',
     },
     list: {
         padding: SPACING.lg,
@@ -163,11 +162,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: SPACING.md,
-        backgroundColor: COLORS.card,
         borderRadius: RADIUS.md,
         marginBottom: SPACING.md,
         borderWidth: 1,
-        borderColor: COLORS.border,
     },
     tradeLeft: {
         flexDirection: 'row',
@@ -184,12 +181,10 @@ const styles = StyleSheet.create({
     symbol: {
         fontSize: 16,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
     },
     type: {
         fontSize: 12,
         fontFamily: FONTS.medium,
-        color: COLORS.textSecondary,
     },
     tradeRight: {
         alignItems: 'flex-end',
@@ -201,7 +196,6 @@ const styles = StyleSheet.create({
     date: {
         fontSize: 12,
         fontFamily: FONTS.regular,
-        color: COLORS.textTertiary,
     },
     empty: {
         alignItems: 'center',
@@ -212,6 +206,5 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 16,
         fontFamily: FONTS.medium,
-        color: COLORS.textTertiary,
     },
 });

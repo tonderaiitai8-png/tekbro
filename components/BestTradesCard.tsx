@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { TrendingUp, ArrowUpRight, Trophy } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Trade } from '../types';
+import { formatCurrency } from '../utils/currency';
 
 interface Props {
     trades: Trade[];
@@ -61,7 +62,7 @@ export function BestTradesCard({ trades, onTradePress, onViewAll }: Props) {
                                 <Text style={styles.symbol}>{trade.symbol}</Text>
                                 <View style={styles.pnlBadge}>
                                     <ArrowUpRight size={14} color={COLORS.success} />
-                                    <Text style={styles.pnlText}>+£{trade.pnl?.toFixed(2)}</Text>
+                                    <Text style={styles.pnlText}>+{formatCurrency(trade.pnl || 0)}</Text>
                                 </View>
                             </View>
 

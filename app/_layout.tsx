@@ -24,23 +24,23 @@ export default function RootLayout() {
     const rootNavigationState = useRootNavigationState();
 
     useEffect(() => {
-        initDatabase().catch(err => console.error('DB Init Error:', err));
+        initDatabase()
+            .then(() => {
+                // Initialize watchlist after DB is ready
+                useStore.getState().initializeWatchlist();
+            })
+            .catch(err => console.error('DB Init Error:', err));
     }, []);
 
     // Run market engines globally
     useMarketEngine();
     useCryptoEngine();
 
-    const { activeNews, setActiveNews, checkLoginStreak, syncAchievements, level } = useStore();
-    const [showLevelUp, setShowLevelUp] = useState(false);
-    const prevLevelRef = useRef(level);
-
-    useEffect(() => {
-        if (level > prevLevelRef.current) {
-            setShowLevelUp(true);
-        }
-        prevLevelRef.current = level;
-    }, [level]);
+    const activeNews = useStore(state => state.activeNews);
+    const setActiveNews = useStore(state => state.setActiveNews);
+    const checkLoginStreak = useStore(state => state.checkLoginStreak);
+    const syncAchievements = useStore(state => state.syncAchievements);
+    const onboardingCompleted = useStore(state => state.onboardingCompleted);
 
     const onboardingChecked = useRef(false);
 
@@ -89,7 +89,6 @@ export default function RootLayout() {
     }, [rootNavigationState?.key]);
 
     // Watch for store reset to trigger onboarding
-    const { onboardingCompleted } = useStore();
     useEffect(() => {
         if (isReady && !onboardingCompleted && segments[0] !== 'onboarding') {
             router.replace('/onboarding');
@@ -105,36 +104,16 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <ErrorBoundary>
                 <SafeAreaProvider>
-                    <StatusBar style="light" backgroundColor={COLORS.bg} />
-                    <View style={{ flex: 1 }}>
-                        <Stack
-                            screenOptions={{
-                                headerShown: false,
-                                contentStyle: { backgroundColor: COLORS.bg },
-                                animation: 'slide_from_right',
-                            }}
-                        >
-                            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-                            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                            <Stack.Screen
-                                name="stock/[id]"
-                                options={{
-                                    presentation: 'modal',
-                                    headerShown: false
-                                }}
-                            />
-                        </Stack>
+                    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+                        <StatusBar style="light" />
+                        <Stack screenOptions={{ headerShown: false }} />
                         <GameAlert
                             visible={!!activeNews && onboardingCompleted}
                             title={activeNews?.type === 'COMPANY' ? `NEWS: ${activeNews.symbol}` : 'MARKET UPDATE'}
                             message={activeNews?.headline || ''}
                             onDismiss={() => setActiveNews(null)}
                         />
-                        <LevelUpModal
-                            visible={showLevelUp}
-                            level={level}
-                            onClose={() => setShowLevelUp(false)}
-                        />
+                        <LevelUpModal />
                         <ToastContainer />
                     </View>
                 </SafeAreaProvider>
